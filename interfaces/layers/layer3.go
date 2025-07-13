@@ -1,6 +1,8 @@
 package layers
 
+import "expansion-gateway/interfaces"
+
 type Layer3 interface {
 	Layer
-	SetLayer2(layer2 *Layer2)
+	interfaces.OneWayPipe
 }
