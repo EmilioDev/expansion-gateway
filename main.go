@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	fmt.Println("expansion gateway starting...")
+	fmt.Println("game gateway starting...")
 }
