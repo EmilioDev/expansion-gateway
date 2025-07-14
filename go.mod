@@ -2,7 +2,10 @@ module expansion-gateway
 
 go 1.24.2
 
-require github.com/xtaci/kcp-go/v5 v5.6.22
+require (
+	github.com/joho/godotenv v1.5.1
+	github.com/xtaci/kcp-go/v5 v5.6.22
+)
 
 require (
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect

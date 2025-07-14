@@ -2,12 +2,14 @@ package kcp_handler
 
 import (
 	"errors"
+	"expansion-gateway/config"
 	"fmt"
 
 	kcp "github.com/xtaci/kcp-go/v5"
 )
 
 type KcpAsLayer1 struct {
+	conf          *config.Configuration
 	outputChannel chan<- string
 	running       bool
 }
@@ -21,7 +23,7 @@ func (layer *KcpAsLayer1) Start() error {
 		return errors.New("channel already closed")
 	}
 
-	const serverPath string = "127.0.0.1:12345"
+	var serverPath string = layer.conf.GetServerAddress()
 
 	if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
 		layer.running = true
