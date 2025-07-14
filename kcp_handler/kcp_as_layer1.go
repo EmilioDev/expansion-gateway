@@ -33,14 +33,6 @@ func (layer *KcpAsLayer1) Start() error {
 	}
 }
 
-func (layer *KcpAsLayer1) process(listener *kcp.Listener) {
-	for layer.running {
-		if session, err := listener.AcceptKCP(); err == nil {
-			go handleSession(session, layer.outputChannel)
-		}
-	}
-}
-
 func (layer *KcpAsLayer1) Stop() error {
 	layer.running = false
 
@@ -51,6 +43,14 @@ func (layer *KcpAsLayer1) Stop() error {
 	close(layer.outputChannel)
 
 	return nil
+}
+
+func (layer *KcpAsLayer1) process(listener *kcp.Listener) {
+	for layer.running {
+		if session, err := listener.AcceptKCP(); err == nil {
+			go handleSession(session, layer.outputChannel)
+		}
+	}
 }
 
 func handleSession(session *kcp.UDPSession, outputChannel chan<- string) {
