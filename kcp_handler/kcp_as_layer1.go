@@ -3,6 +3,9 @@ package kcp_handler
 import (
 	"errors"
 	"expansion-gateway/config"
+	"expansion-gateway/dto"
+	"expansion-gateway/helpers"
+	"expansion-gateway/parsers"
 	"fmt"
 
 	kcp "github.com/xtaci/kcp-go/v5"
@@ -10,8 +13,10 @@ import (
 
 type KcpAsLayer1 struct {
 	conf          *config.Configuration
-	outputChannel chan<- string
+	outputChannel chan<- dto.Packet
 	running       bool
+	sessions      map[int64]*kcp.UDPSession
+	listener      *kcp.Listener
 }
 
 func (layer *KcpAsLayer1) Start() error {
@@ -28,7 +33,11 @@ func (layer *KcpAsLayer1) Start() error {
 	if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
 		layer.running = true
 		fmt.Printf("server running on %s\n", serverPath)
-		layer.process(listener)
+
+		layer.listener = listener
+
+		go layer.process()
+
 		return nil
 	} else {
 		return err
@@ -47,27 +56,49 @@ func (layer *KcpAsLayer1) Stop() error {
 	return nil
 }
 
-func (layer *KcpAsLayer1) process(listener *kcp.Listener) {
+func (layer *KcpAsLayer1) process() {
 	for layer.running {
-		if session, err := listener.AcceptKCP(); err == nil {
-			go handleSession(session, layer.outputChannel)
+		if session, err := layer.listener.AcceptKCP(); err == nil {
+			connectionId := helpers.GenerateRandomInt64()
+
+			for {
+				if _, exists := layer.sessions[connectionId]; !exists {
+					break
+				}
+
+				connectionId = helpers.GenerateRandomInt64()
+			}
+
+			layer.sessions[connectionId] = session
+
+			go layer.handleSession(connectionId)
 		}
 	}
 }
 
-func handleSession(session *kcp.UDPSession, outputChannel chan<- string) {
-	const bufferSize int = 4096
-	buffer := make([]byte, bufferSize)
+func (layer *KcpAsLayer1) handleSession(connectionId int64) {
+	buffer := make([]byte, layer.conf.GetBufferSize())
 
 	for {
-		if outputChannel == nil {
-			break
+		if layer.outputChannel == nil {
+			layer.sessions[connectionId].Close()
+			delete(layer.sessions, connectionId)
+			return
 		}
 
-		if dataLen, err := session.Read(buffer); err == nil {
-			//packet := buffer[:dataLen]
+		if _, sessionExists := layer.sessions[connectionId]; sessionExists {
+			if dataLen, err := layer.sessions[connectionId].Read(buffer); err == nil {
+				rawPacket := buffer[:dataLen]
 
-			fmt.Println("packet length is", dataLen)
+				if packet, err := parsers.ParseByteArrayToPacket(&rawPacket, connectionId); err == nil {
+					layer.outputChannel <- *packet
+				}
+			} else {
+				fmt.Printf("error in session %d: %s\n", connectionId, err.Error())
+				continue
+			}
+		} else {
+			return
 		}
 	}
 }
