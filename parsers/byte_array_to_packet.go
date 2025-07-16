@@ -1,12 +1,14 @@
 package parsers
 
 import (
-	"expansion-gateway/dto"
 	"expansion-gateway/errors"
+	"expansion-gateway/interfaces/packets"
 )
 
-func ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (*dto.Packet, errors.GatewayError) {
-	answer := dto.CreateDefaultPacket(connectionID)
+type BasicByteArrayToPacketParser struct{}
 
-	return answer, nil
+func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (*packets.Packet, errors.GatewayError) {
+	// implement
+
+	return nil, nil
 }

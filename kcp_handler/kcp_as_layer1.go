@@ -3,20 +3,36 @@ package kcp_handler
 import (
 	"errors"
 	"expansion-gateway/config"
-	"expansion-gateway/dto"
 	"expansion-gateway/helpers"
-	"expansion-gateway/parsers"
+	"expansion-gateway/interfaces/packets"
+	"expansion-gateway/interfaces/parsers"
 	"fmt"
 
 	kcp "github.com/xtaci/kcp-go/v5"
 )
 
 type KcpAsLayer1 struct {
-	conf          *config.Configuration
-	outputChannel chan<- dto.Packet
-	running       bool
-	sessions      map[int64]*kcp.UDPSession
-	listener      *kcp.Listener
+	running  bool
+	sessions map[int64]*kcp.UDPSession
+	listener *kcp.Listener
+
+	// requires initialization
+	outputChannel chan<- packets.Packet
+	configuration *config.Configuration
+	parser        parsers.ByteStreamToPacketParser
+}
+
+func CreateNewKcpLayer1(configuration *config.Configuration,
+	outputChannel chan<- packets.Packet,
+	parser parsers.ByteStreamToPacketParser) *KcpAsLayer1 {
+	return &KcpAsLayer1{
+		outputChannel: outputChannel,
+		running:       false,
+		sessions:      make(map[int64]*kcp.UDPSession),
+		listener:      nil,
+		configuration: configuration,
+		parser:        parser,
+	}
 }
 
 func (layer *KcpAsLayer1) Start() error {
@@ -28,7 +44,7 @@ func (layer *KcpAsLayer1) Start() error {
 		return errors.New("channel already closed")
 	}
 
-	var serverPath string = layer.conf.GetServerAddress()
+	var serverPath string = layer.configuration.GetServerAddress()
 
 	if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
 		layer.running = true
@@ -77,7 +93,7 @@ func (layer *KcpAsLayer1) process() {
 }
 
 func (layer *KcpAsLayer1) handleSession(connectionId int64) {
-	buffer := make([]byte, layer.conf.GetBufferSize())
+	buffer := make([]byte, layer.configuration.GetBufferSize())
 
 	for {
 		if layer.outputChannel == nil {
@@ -90,7 +106,7 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 			if dataLen, err := layer.sessions[connectionId].Read(buffer); err == nil {
 				rawPacket := buffer[:dataLen]
 
-				if packet, err := parsers.ParseByteArrayToPacket(&rawPacket, connectionId); err == nil {
+				if packet, err := layer.parser.ParseByteArrayToPacket(&rawPacket, connectionId); err == nil {
 					layer.outputChannel <- *packet
 				}
 			} else {
