@@ -13,7 +13,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 	const filePath string = "/parsers/byteArrayToPacket/to_hello_packet.go"
 
 	if byteArraySize < 5 || byteArraySize > 14 {
-		return nil, errors.CreateInvalidPacketSizeError(filePath, 14, enums.HELLO, byteArraySize)
+		return nil, errors.CreateInvalidPacketSizeError(filePath, 15, enums.HELLO, byteArraySize)
 	}
 
 	answer := dto.HelloPacket{
@@ -61,6 +61,19 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 
 	answer.VariableHeader.PayloadEncrypted = (currentByte & 0x01) == 0x01
 	answer.VariableHeader.PayloadEncrypted = (currentByte & 0x02) == 0x02
+
+	// encryptation algorythm
+	if answer.VariableHeader.PayloadEncrypted && byteArraySize < 6 {
+		return nil, errors.CreateInvalidPacketSizeError(filePath, 65, enums.HELLO, byteArraySize)
+	}
+
+	currentByte = (*byteArray)[5]
+
+	if !enums.IsValidEncryptationAlgorythm(currentByte) {
+		return nil, errors.CreatePacketWithInvalidEncryptationAlgorythm(filePath, 72, enums.HELLO, currentByte)
+	}
+
+	answer.VariableHeader.Encryptation = enums.EncryptationAlgorythm(currentByte)
 
 	return &answer, nil
 }
