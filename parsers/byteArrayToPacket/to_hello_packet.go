@@ -26,7 +26,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 	if enums.IsValidProtocolVersion(currentByte) {
 		answer.VariableHeader.ProtocolVersion = enums.ProtocolVersion(currentByte)
 	} else {
-		return nil, errors.CreatePacketWithInvalidProtocolVersion(filePath, 24, enums.HELLO, currentByte)
+		return nil, errors.CreatePacketWithInvalidProtocolVersion(filePath, 26, enums.HELLO, currentByte)
 	}
 
 	//client type
@@ -35,7 +35,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 	if enums.IsValidClientType(currentByte) {
 		answer.VariableHeader.ClientType = enums.ClientType(currentByte)
 	} else {
-		//
+		return nil, errors.CreatePacketWithInvalidClientType(filePath, 35, enums.HELLO, currentByte)
 	}
 
 	return &answer, nil
