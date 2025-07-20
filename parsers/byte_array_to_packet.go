@@ -9,7 +9,7 @@ import (
 
 type BasicByteArrayToPacketParser struct{}
 
-func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (*packets.Packet, errors.GatewayError) {
+func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errors.GatewayError) {
 	byteArraySize := len(*byteArray)
 	const filePath string = "/parsers/byte_array_to_packet.go"
 
@@ -21,7 +21,7 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 
 	switch enums.PacketType(indexByte) {
 	case enums.HELLO:
-		return bytearraytopacket.ToHelloPacket(byteArray)
+		return bytearraytopacket.ToHelloPacket(byteArray, connectionID)
 
 	default:
 		return nil, errors.CreateInvalidPacketError(filePath, 25)

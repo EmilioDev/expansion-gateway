@@ -1,0 +1,52 @@
+packet types:
+    hello:
+        a b c d e f g g g g g g g g
+        | | | | | |               |
+        p p c c f e               s
+        a r l l l n               e
+        c o i i a c               s
+        k t e e g r               s
+        e o n n s y               i
+        t c t t   p               o
+          o     p t               n
+        t l t v a i
+        y   y e y o               i
+        p v p r l n               d
+        e e e s o
+          r   i a
+          s   o d
+          i   n
+          o     e
+          n     n
+                c
+                r
+                y
+                p
+                t
+                e
+                d
+                /
+                s
+                e
+                s
+                s
+                i
+                o
+                n
+                
+                r
+                e
+                s
+                u
+                m
+                e
+                d
+
+        where:
+            - packet type: the type of packet(hello in this case) [required]
+            - protocol version: the version of the protocol this client uses [required]
+            - client type: if this is the godot client, the cli tool, etc [required]
+            - client version: version of this client
+            - flags: for now, the last bit tells you if this is a session resume, and the previous bit tells you if this client is going to encrupt their payloads or not [required]
+            - encryptation: it tells you which encryptation algorythm is going to be used in the payload [only present if encryptation flag is true]
+            - session id: it tells you which session id this connection tries to resume [only present if session resume flag is true]
