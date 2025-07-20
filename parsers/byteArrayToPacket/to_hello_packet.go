@@ -48,5 +48,23 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 		return nil, errors.CreatePacketWithInvalidClientVersion(filePath, 45, enums.HELLO, answer.VariableHeader.ClientType, currentByte)
 	}
 
+	// packet flags
+	currentByte = (*byteArray)[4]
+
+	if !checkFlags(currentByte) {
+		return nil, errors.CreatePacketWithInvalidFlags(filePath, 54, enums.HELLO, answer.VariableHeader.ClientType, currentByte)
+	}
+
+	// from right to left:
+	// the 1st bit -> payload encrypted
+	// the 2nd bit -> requesting session resume
+
+	answer.VariableHeader.PayloadEncrypted = (currentByte & 0x01) == 0x01
+	answer.VariableHeader.PayloadEncrypted = (currentByte & 0x02) == 0x02
+
 	return &answer, nil
+}
+
+func checkFlags(flagsByte byte) bool {
+	return flagsByte <= 3
 }
