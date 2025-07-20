@@ -4,6 +4,7 @@ import (
 	"expansion-gateway/dto"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors"
+	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/packets"
 )
 
@@ -36,6 +37,15 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 		answer.VariableHeader.ClientType = enums.ClientType(currentByte)
 	} else {
 		return nil, errors.CreatePacketWithInvalidClientType(filePath, 35, enums.HELLO, currentByte)
+	}
+
+	// client version
+	currentByte = (*byteArray)[3]
+
+	if helpers.ValidateClientVersion(answer.VariableHeader.ClientType, currentByte) {
+		answer.VariableHeader.ClientVersion = currentByte
+	} else {
+		return nil, errors.CreatePacketWithInvalidClientVersion(filePath, 45, enums.HELLO, answer.VariableHeader.ClientType, currentByte)
 	}
 
 	return &answer, nil
