@@ -16,7 +16,7 @@ func (err PacketWithInvalidEncryptationAlgorythm) Error() string {
 
 func CreatePacketWithInvalidEncryptationAlgorythm(file string, line uint16, packetType enums.PacketType, requestedEncryptionAlgorythm byte) PacketWithInvalidEncryptationAlgorythm {
 	return PacketWithInvalidEncryptationAlgorythm{
-		CreatePacketError(file, "Invalid client type", line, 3, packetType),
+		CreatePacketError(file, "Invalid client type", line, 6, packetType),
 		requestedEncryptionAlgorythm,
 	}
 }

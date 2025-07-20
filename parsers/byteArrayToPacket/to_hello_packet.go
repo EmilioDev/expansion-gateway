@@ -60,20 +60,47 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 	// the 2nd bit -> requesting session resume
 
 	answer.VariableHeader.PayloadEncrypted = (currentByte & 0x01) == 0x01
-	answer.VariableHeader.PayloadEncrypted = (currentByte & 0x02) == 0x02
+	answer.VariableHeader.SessionResume = (currentByte & 0x02) == 0x02
 
-	// encryptation algorythm
-	if answer.VariableHeader.PayloadEncrypted && byteArraySize < 6 {
+	if !answer.VariableHeader.PayloadEncrypted && !answer.VariableHeader.SessionResume && byteArraySize != 5 {
 		return nil, errors.CreateInvalidPacketSizeError(filePath, 65, enums.HELLO, byteArraySize)
 	}
 
-	currentByte = (*byteArray)[5]
+	// encryptation algorythm
+	index := 5
+	if answer.VariableHeader.PayloadEncrypted {
+		if byteArraySize <= index {
+			return nil, errors.CreateInvalidPacketSizeError(filePath, 72, enums.HELLO, byteArraySize)
+		}
 
-	if !enums.IsValidEncryptationAlgorythm(currentByte) {
-		return nil, errors.CreatePacketWithInvalidEncryptationAlgorythm(filePath, 72, enums.HELLO, currentByte)
+		currentByte = (*byteArray)[index]
+
+		if !enums.IsValidEncryptationAlgorythm(currentByte) {
+			return nil, errors.CreatePacketWithInvalidEncryptationAlgorythm(filePath, 78, enums.HELLO, currentByte)
+		}
+
+		answer.VariableHeader.Encryptation = enums.EncryptationAlgorythm(currentByte)
+		index++
 	}
 
-	answer.VariableHeader.Encryptation = enums.EncryptationAlgorythm(currentByte)
+	// requested session id to resume
+	if answer.VariableHeader.SessionResume {
+		if byteArraySize <= index+7 {
+			return nil, errors.CreateInvalidPacketSizeError(filePath, 87, enums.HELLO, byteArraySize)
+		}
+
+		answer.VariableHeader.PretendedUserID = helpers.Convert8BytesIntoSingleInt64(
+			(*byteArray)[index],
+			(*byteArray)[index+1],
+			(*byteArray)[index+2],
+			(*byteArray)[index+3],
+			(*byteArray)[index+4],
+			(*byteArray)[index+5],
+			(*byteArray)[index+6],
+			(*byteArray)[index+7])
+
+		//index++ // not needed if this is the last thing to do
+	}
 
 	return &answer, nil
 }
