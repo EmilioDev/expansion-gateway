@@ -1,3 +1,7 @@
+packet cycle:
+  client:   hello           connect
+
+  server:         challenge         connected/redirect/disconnect
 packet types:
     hello:
         a b c d e f g g g g g g g g

@@ -2,6 +2,7 @@ package errors
 
 import (
 	"expansion-gateway/enums"
+	"expansion-gateway/interfaces/errorinfo"
 	"fmt"
 )
 
@@ -19,4 +20,9 @@ func CreatePacketWithInvalidFlags(file string, line uint16, packetType enums.Pac
 		CreatePacketError(file, "Invalid flags", line, 5, packetType),
 		flagsByte,
 	}
+}
+
+func (err PacketWithInvalidFlags) SetStackTrace(stackTrace []string) errorinfo.GatewayError {
+	err.StackTrace = stackTrace
+	return &err
 }

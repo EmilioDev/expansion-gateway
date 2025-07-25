@@ -1,7 +1,7 @@
 package parsers
 
 import (
-	"expansion-gateway/errors"
+	errors "expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 )
 

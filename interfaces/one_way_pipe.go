@@ -1,6 +1,8 @@
 package interfaces
 
+import "expansion-gateway/interfaces/packets"
+
 type OneWayPipe interface {
 	// Initialices this layer with the cannel
-	InitOutputChannel(channel chan<- string)
+	InitOutputChannel(channel packets.Packet)
 }

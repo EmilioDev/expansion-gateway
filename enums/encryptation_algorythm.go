@@ -1,14 +1,14 @@
 package enums
 
-type EncryptationAlgorythm byte
+type EncryptionAlgorithm byte
 
 const (
-	NoEncryptation EncryptationAlgorythm = iota
+	NoEncryption EncryptionAlgorithm = iota
 	Salsa20
 	//
-	maxEncryptationAlgorythm
+	maxEncryptionAlgorythm
 )
 
-func IsValidEncryptationAlgorythm(candidate byte) bool {
-	return candidate < byte(maxEncryptationAlgorythm)
+func IsValidEncryptionAlgorythm(candidate byte) bool {
+	return candidate < byte(maxEncryptionAlgorythm)
 }

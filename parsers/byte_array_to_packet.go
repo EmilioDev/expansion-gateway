@@ -3,13 +3,14 @@ package parsers
 import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors"
+	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	bytearraytopacket "expansion-gateway/parsers/byteArrayToPacket"
 )
 
 type BasicByteArrayToPacketParser struct{}
 
-func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errors.GatewayError) {
+func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errorinfo.GatewayError) {
 	byteArraySize := len(*byteArray)
 	const filePath string = "/parsers/byte_array_to_packet.go"
 
@@ -24,6 +25,6 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 		return bytearraytopacket.ToHelloPacket(byteArray, connectionID)
 
 	default:
-		return nil, errors.CreateInvalidPacketError(filePath, 25)
+		return nil, errors.CreateInvalidPacketError(filePath, 22)
 	}
 }

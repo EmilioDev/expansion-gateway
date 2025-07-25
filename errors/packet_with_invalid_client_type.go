@@ -2,6 +2,7 @@ package errors
 
 import (
 	"expansion-gateway/enums"
+	"expansion-gateway/interfaces/errorinfo"
 	"fmt"
 )
 
@@ -19,4 +20,9 @@ func CreatePacketWithInvalidClientType(file string, line uint16, packetType enum
 		CreatePacketError(file, "Invalid client type", line, 3, packetType),
 		requestedClientType,
 	}
+}
+
+func (err PacketWithInvalidClientType) SetStackTrace(stackTrace []string) errorinfo.GatewayError {
+	err.StackTrace = stackTrace
+	return &err
 }

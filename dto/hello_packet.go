@@ -2,6 +2,8 @@ package dto
 
 import (
 	"expansion-gateway/enums"
+	"expansion-gateway/helpers"
+	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 )
 
@@ -11,13 +13,14 @@ type HelloPacket struct {
 }
 
 type HelloPacketVariableHeader struct {
-	ProtocolVersion  enums.ProtocolVersion       // protocol version requested by the user
-	ClientType       enums.ClientType            // client type (godot, cli...)
-	ClientVersion    byte                        // version of this client
-	PayloadEncrypted bool                        // if this user is going to encrypt the payload
-	SessionResume    bool                        // if this is a resume of a previously open session
-	Encryptation     enums.EncryptationAlgorythm // encryptation algorythm this user is going to use in the payload
-	PretendedUserID  int64                       // the id of the previously open session this user wants to continue using
+	BaseHeader                                 // The base header struct
+	ProtocolVersion  enums.ProtocolVersion     // protocol version requested by the user
+	ClientType       enums.ClientType          // client type (godot, cli...)
+	ClientVersion    byte                      // version of this client
+	PayloadEncrypted bool                      // if this user is going to encrypt the payload
+	SessionResume    bool                      // if this is a resume of a previously open session
+	Encryptation     enums.EncryptionAlgorithm // encryptation algorythm this user is going to use in the payload
+	PretendedUserID  int64                     // the id of the previously open session this user wants to continue using
 }
 
 func (packet HelloPacket) GetPacketType() enums.PacketType {
@@ -30,4 +33,36 @@ func (packet HelloPacket) GetPacketHeader() packets.PacketHeader {
 
 func (packet HelloPacket) GetPayload() string {
 	return ""
+}
+
+func (packet HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
+	answer := []byte{
+		0x00,
+		byte(packet.VariableHeader.ProtocolVersion),
+		byte(packet.VariableHeader.ClientType),
+		packet.VariableHeader.ClientVersion,
+	}
+
+	var currentByte byte = 0x00
+
+	if packet.VariableHeader.PayloadEncrypted {
+		currentByte++
+	}
+
+	if packet.VariableHeader.SessionResume {
+		currentByte += 2
+	}
+
+	answer = append(answer, currentByte)
+
+	if packet.VariableHeader.PayloadEncrypted {
+		answer = append(answer, byte(packet.VariableHeader.Encryptation))
+	}
+
+	if packet.VariableHeader.SessionResume {
+		session_id := helpers.ConvertInt64Into8Bytes(packet.VariableHeader.PretendedUserID)
+		answer = append(answer, session_id[:]...)
+	}
+
+	return answer, nil
 }

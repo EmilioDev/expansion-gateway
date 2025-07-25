@@ -5,10 +5,11 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors"
 	"expansion-gateway/helpers"
+	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 )
 
-func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errors.GatewayError) {
+func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errorinfo.GatewayError) {
 	byteArraySize := len(*byteArray)
 	const filePath string = "/parsers/byteArrayToPacket/to_hello_packet.go"
 
@@ -75,11 +76,11 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 
 		currentByte = (*byteArray)[index]
 
-		if !enums.IsValidEncryptationAlgorythm(currentByte) {
-			return nil, errors.CreatePacketWithInvalidEncryptationAlgorythm(filePath, 78, enums.HELLO, currentByte)
+		if !enums.IsValidEncryptionAlgorythm(currentByte) {
+			return nil, errors.CreatePacketWithInvalidEncryptionAlgorythm(filePath, 78, enums.HELLO, currentByte)
 		}
 
-		answer.VariableHeader.Encryptation = enums.EncryptationAlgorythm(currentByte)
+		answer.VariableHeader.Encryptation = enums.EncryptionAlgorithm(currentByte)
 		index++
 	}
 
@@ -99,7 +100,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 			(*byteArray)[index+6],
 			(*byteArray)[index+7])
 
-		//index++ // not needed if this is the last thing to do
+		//index+=8 // not needed if this is the last thing to do
 	}
 
 	return &answer, nil

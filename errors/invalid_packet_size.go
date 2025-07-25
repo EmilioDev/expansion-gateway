@@ -2,6 +2,7 @@ package errors
 
 import (
 	"expansion-gateway/enums"
+	"expansion-gateway/interfaces/errorinfo"
 	"fmt"
 )
 
@@ -20,4 +21,9 @@ func CreateInvalidPacketSizeError(file string, line uint16, packetType enums.Pac
 		CreatePacketError(file, "Packet with invalid size", line, 1, packetType),
 		currentSize,
 	}
+}
+
+func (err InvalidPacketSize) SetStackTrace(stackTrace []string) errorinfo.GatewayError {
+	err.StackTrace = stackTrace
+	return &err
 }
