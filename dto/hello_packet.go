@@ -45,12 +45,17 @@ func (packet HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 
 	var currentByte byte = 0x00
 
+	const (
+		flagEncrypted     byte = 1 << 0
+		flagSessionResume byte = 1 << 1
+	)
+
 	if packet.VariableHeader.PayloadEncrypted {
-		currentByte++
+		currentByte |= flagEncrypted
 	}
 
 	if packet.VariableHeader.SessionResume {
-		currentByte += 2
+		currentByte |= flagSessionResume
 	}
 
 	answer = append(answer, currentByte)
