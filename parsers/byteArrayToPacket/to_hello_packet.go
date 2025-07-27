@@ -80,7 +80,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 			return nil, errors.CreatePacketWithInvalidEncryptionAlgorythm(filePath, 78, enums.HELLO, currentByte)
 		}
 
-		answer.VariableHeader.Encryptation = enums.EncryptionAlgorithm(currentByte)
+		answer.VariableHeader.Encryption = enums.EncryptionAlgorithm(currentByte)
 		index++
 	}
 

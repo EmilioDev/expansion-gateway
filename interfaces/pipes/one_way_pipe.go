@@ -1,4 +1,4 @@
-package interfaces
+package pipes
 
 import "expansion-gateway/interfaces/packets"
 

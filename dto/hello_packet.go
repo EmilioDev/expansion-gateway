@@ -2,6 +2,7 @@ package dto
 
 import (
 	"expansion-gateway/enums"
+	"expansion-gateway/errors"
 	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
@@ -19,7 +20,7 @@ type HelloPacketVariableHeader struct {
 	ClientVersion    byte                      // version of this client
 	PayloadEncrypted bool                      // if this user is going to encrypt the payload
 	SessionResume    bool                      // if this is a resume of a previously open session
-	Encryptation     enums.EncryptionAlgorithm // encryptation algorythm this user is going to use in the payload
+	Encryption       enums.EncryptionAlgorithm // encryptation algorythm this user is going to use in the payload
 	PretendedUserID  int64                     // the id of the previously open session this user wants to continue using
 }
 
@@ -35,9 +36,14 @@ func (packet HelloPacket) GetPayload() string {
 	return ""
 }
 
+func (packet HelloPacket) GetSender() int64 {
+	return packet.Sender
+}
+
 func (packet HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
+	const filePath string = "/dto/hello_packet.go"
 	answer := []byte{
-		0x00,
+		byte(enums.HELLO),
 		byte(packet.VariableHeader.ProtocolVersion),
 		byte(packet.VariableHeader.ClientType),
 		packet.VariableHeader.ClientVersion,
@@ -61,7 +67,16 @@ func (packet HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	answer = append(answer, currentByte)
 
 	if packet.VariableHeader.PayloadEncrypted {
-		answer = append(answer, byte(packet.VariableHeader.Encryptation))
+		if packet.VariableHeader.Encryption < enums.MaxEncryptionAlgorythm {
+			answer = append(answer, byte(packet.VariableHeader.Encryption))
+		} else {
+			return nil, errors.CreatePacketWithInvalidEncryptionAlgorythm(
+				filePath,
+				72,
+				enums.HELLO,
+				byte(packet.VariableHeader.Encryption),
+			)
+		}
 	}
 
 	if packet.VariableHeader.SessionResume {

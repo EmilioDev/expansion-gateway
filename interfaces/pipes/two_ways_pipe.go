@@ -1,4 +1,4 @@
-package interfaces
+package pipes
 
 type TwoWaysPipe interface {
 	SetChannelPreviousLayer(channel chan<- string)

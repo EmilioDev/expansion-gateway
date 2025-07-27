@@ -7,5 +7,5 @@ import (
 
 type ByteStreamToPacketParser interface {
 	// converts a byte array into a packet
-	ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (*packets.Packet, errors.GatewayError)
+	ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errors.GatewayError)
 }

@@ -1,8 +1,10 @@
 package layers
 
-import "expansion-gateway/interfaces"
+import (
+	"expansion-gateway/interfaces/pipes"
+)
 
 type Layer1 interface {
-	interfaces.OneWayPipe
+	pipes.OneWayPipe
 	Layer
 }

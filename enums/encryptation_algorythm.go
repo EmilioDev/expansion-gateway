@@ -5,10 +5,10 @@ type EncryptionAlgorithm byte
 const (
 	NoEncryption EncryptionAlgorithm = iota
 	Salsa20
-	//
-	maxEncryptionAlgorythm
+	//new values will be added here...
+	MaxEncryptionAlgorythm
 )
 
 func IsValidEncryptionAlgorythm(candidate byte) bool {
-	return candidate < byte(maxEncryptionAlgorythm)
+	return candidate < byte(MaxEncryptionAlgorythm)
 }
