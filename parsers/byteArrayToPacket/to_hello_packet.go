@@ -106,6 +106,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 	return &answer, nil
 }
 
+// this function is for checking if the flags byte is, in general, ok
 func checkFlags(flagsByte byte) bool {
 	return flagsByte <= 3
 }
