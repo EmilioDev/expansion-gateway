@@ -1,11 +1,14 @@
 package kcp_handler
 
 import (
-	"errors"
 	"expansion-gateway/config"
 	"expansion-gateway/dto"
+	"expansion-gateway/enums"
+	"expansion-gateway/errors"
+	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/commands"
+	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/interfaces/parsers"
 	"fmt"
@@ -24,27 +27,30 @@ type KcpAsLayer1 struct {
 }
 
 func CreateNewKcpLayer1(configuration *config.Configuration,
-	outputChannel chan<- packets.Packet,
-	inputChannel <-chan commands.Command,
 	parser parsers.ByteStreamToPacketParser) *KcpAsLayer1 {
 	return &KcpAsLayer1{
-		outputChannel: outputChannel,
+		// outputChannel: outputChannel,
 		running:       false,
 		sessions:      make(map[int64]*kcp.UDPSession),
 		listener:      nil,
 		configuration: configuration,
 		parser:        parser,
-		inputChannel:  inputChannel,
+		// inputChannel:  inputChannel,
+
+		// the channels are not going to be assigned here, this layer will be passed to layer 2
+		// and layer 2 will use the "ConfigureDumbLayer" method to configure the channels
+		// with the ones created there
 	}
 }
 
-func (layer *KcpAsLayer1) Start() error {
+func (layer KcpAsLayer1) Start() errorinfo.GatewayError {
+	const filePath string = "/kcp_handler/kcp_as_layer1.go"
 	if layer.running {
 		return nil
 	}
 
 	if layer.outputChannel == nil {
-		return errors.New("channel already closed")
+		return layererrors.CreateChannelClosed_LayerError(filePath, 50, enums.LAYER_1, enums.OUTPUT_CHANNEL)
 	}
 
 	var serverPath string = layer.configuration.GetServerAddress()
@@ -60,19 +66,26 @@ func (layer *KcpAsLayer1) Start() error {
 
 		return nil
 	} else {
-		return err
+		return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 66, err), 2)
 	}
 }
 
-func (layer *KcpAsLayer1) Stop() error {
+func (layer KcpAsLayer1) Stop() errorinfo.GatewayError {
 	layer.running = false
+	const filePath string = "/kcp_handler/kcp_as_layer1.go"
 
 	if layer.outputChannel == nil {
-		return errors.New("channel already closed")
+		return layererrors.CreateChannelClosed_LayerError(filePath, 75, enums.LAYER_1, enums.OUTPUT_CHANNEL)
 	}
 
 	close(layer.outputChannel)
 
+	return nil
+}
+
+func (layer KcpAsLayer1) ConfigureDumbLayer(outputChannel chan<- packets.Packet, inputChannel <-chan commands.Command) errorinfo.GatewayError {
+	layer.outputChannel = outputChannel
+	layer.inputChannel = inputChannel
 	return nil
 }
 
