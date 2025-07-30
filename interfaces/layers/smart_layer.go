@@ -1,11 +1,9 @@
 package layers
 
-import "expansion-gateway/interfaces/packets"
-
 type SmartLayer interface {
 	Layer
 	// method for configuring layer 1
-	ConfigureFirstLayer(layer DumbLayer[packets.Packet])
+	ConfigureFirstLayer(layer DumbLayer)
 
-	// ...later we add for layer 3
+	// ...later we add for layer 2 and 3
 }

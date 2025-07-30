@@ -2,13 +2,13 @@ package layers
 
 import (
 	"expansion-gateway/interfaces/commands"
+	"expansion-gateway/interfaces/dispatchers"
 	"expansion-gateway/interfaces/errorinfo"
-	"expansion-gateway/interfaces/packets"
 )
 
-type DumbLayer[O packets.BaseMessage] interface {
+type DumbLayer interface {
 	Layer
-	// these are the channel that will be used between this layer
+	// these are the channels/dispatchers that will be used between this layer
 	// and the bussines logic layer to comunicate
-	ConfigureDumbLayer(outputChannel chan<- O, inputChannel <-chan commands.Command) errorinfo.GatewayError
+	ConfigureDumbLayer(outputChannel dispatchers.Dispatcher, inputChannel <-chan commands.Command) errorinfo.GatewayError
 }
