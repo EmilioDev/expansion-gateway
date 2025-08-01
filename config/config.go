@@ -14,6 +14,7 @@ type Configuration struct {
 	bufferSize      int
 	shardCount      int
 	shardBufferSize int
+	timeout         int
 }
 
 // Initialices this module
@@ -25,6 +26,7 @@ func (conf *Configuration) Initialize() {
 	conf.bufferSize = 4096
 	conf.shardCount = 8
 	conf.shardBufferSize = 1024
+	conf.timeout = 1
 
 	// port
 	stringPort := os.Getenv("PORT")
@@ -57,6 +59,13 @@ func (conf *Configuration) Initialize() {
 			conf.shardBufferSize = num
 		}
 	}
+
+	// connection timeout
+	if val := os.Getenv("CONNECTION_TIMEOUT"); val != "" {
+		if num, err := strconv.Atoi(val); err == nil && num > 0 {
+			conf.timeout = num
+		}
+	}
 }
 
 // returns the server address to be used in this server
@@ -74,4 +83,8 @@ func (conf *Configuration) GetShardCount() int {
 
 func (conf *Configuration) GetShardBufferSize() int {
 	return conf.shardBufferSize
+}
+
+func (conf *Configuration) GetConnectionTimeout() int {
+	return conf.timeout
 }

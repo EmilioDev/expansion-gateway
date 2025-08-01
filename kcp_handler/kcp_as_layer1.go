@@ -12,13 +12,15 @@ import (
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/parsers"
 	"fmt"
+	"net"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	kcp "github.com/xtaci/kcp-go/v5"
 )
 
 type KcpAsLayer1 struct {
-	running          bool                             // If this layer is running or not. This is just a flag
 	sessions         map[int64]*kcp.UDPSession        // all the sessions that are currently active
 	listener         *kcp.Listener                    // the kcp listener
 	outputDispatcher dispatchers.Dispatcher           // this is the channel used to communicate with the next layer
@@ -26,29 +28,36 @@ type KcpAsLayer1 struct {
 	configuration    *config.Configuration            // this is the configuration module. it contains all the config details
 	parser           parsers.ByteStreamToPacketParser // the byte array to packet parser
 	sessionsMutex    *sync.RWMutex
+	working          *atomic.Bool
+	shutdownOnce     *sync.Once
+	wg               *sync.WaitGroup
 }
 
 func CreateNewKcpLayer1(configuration *config.Configuration,
 	parser parsers.ByteStreamToPacketParser) *KcpAsLayer1 {
-	return &KcpAsLayer1{
-		// outputChannel: outputChannel,
-		running:       false,
+	result := &KcpAsLayer1{
 		sessions:      make(map[int64]*kcp.UDPSession),
 		listener:      nil,
 		configuration: configuration,
 		parser:        parser,
 		sessionsMutex: &sync.RWMutex{},
-		// inputChannel:  inputChannel,
+		working:       &atomic.Bool{},
+		shutdownOnce:  &sync.Once{},
+		wg:            &sync.WaitGroup{},
 
 		// the channels are not going to be assigned here, this layer will be passed to layer 2
 		// and layer 2 will use the "ConfigureDumbLayer" method to configure the channels
 		// with the ones created there
 	}
+
+	result.working.Store(false)
+
+	return result
 }
 
 func (layer KcpAsLayer1) Start() errorinfo.GatewayError {
 	const filePath string = "/kcp_handler/kcp_as_layer1.go"
-	if layer.running {
+	if layer.IsWorking() {
 		return nil
 	}
 
@@ -59,7 +68,7 @@ func (layer KcpAsLayer1) Start() errorinfo.GatewayError {
 	var serverPath string = layer.configuration.GetServerAddress()
 
 	if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
-		layer.running = true
+		layer.working.Store(true)
 		fmt.Printf("server running on %s\n", serverPath)
 
 		layer.listener = listener
@@ -73,15 +82,36 @@ func (layer KcpAsLayer1) Start() errorinfo.GatewayError {
 	}
 }
 
-func (layer KcpAsLayer1) Stop() errorinfo.GatewayError {
-	layer.running = false
-	const filePath string = "/kcp_handler/kcp_as_layer1.go"
+// IsWorking reports whether the layer is still accepting connections.
+func (layer KcpAsLayer1) IsWorking() bool {
+	return layer.working.Load()
+}
 
-	if layer.outputDispatcher == nil {
-		return layererrors.CreateChannelClosed_LayerError(filePath, 75, enums.LAYER_1, enums.OUTPUT_CHANNEL)
+func (layer KcpAsLayer1) Stop() errorinfo.GatewayError {
+	if !layer.IsWorking() {
+		return nil
 	}
 
-	// close(layer.outputDispatcher)
+	layer.shutdownOnce.Do(func() {
+		layer.working.Store(false)
+
+		// closing the listener
+		if layer.listener != nil {
+			_ = layer.listener.Close()
+		}
+
+		// closing the sessions
+		layer.sessionsMutex.Lock()
+		defer layer.sessionsMutex.Unlock()
+
+		layer.wg.Wait()
+
+		for id := range layer.sessions {
+			delete(layer.sessions, id)
+		}
+
+		fmt.Println("Gateway exited")
+	})
 
 	return nil
 }
@@ -97,7 +127,7 @@ func (layer *KcpAsLayer1) listenFromInputChannel() {
 }
 
 func (layer *KcpAsLayer1) process() {
-	for layer.running {
+	for layer.IsWorking() {
 		if session, err := layer.listener.AcceptKCP(); err == nil {
 			connectionId := helpers.GenerateRandomInt64()
 
@@ -114,29 +144,34 @@ func (layer *KcpAsLayer1) process() {
 
 			layer.sessionsMutex.Unlock()
 
+			layer.wg.Add(1)
 			go layer.handleSession(connectionId)
 		}
 	}
 }
 
 func (layer *KcpAsLayer1) handleSession(connectionId int64) {
+	defer layer.wg.Done()
+
 	buffer := make([]byte, layer.configuration.GetBufferSize())
 
 	var session *kcp.UDPSession = nil
 	sessionExists := true
+	timeout := time.Duration(layer.configuration.GetConnectionTimeout()) * time.Second
 
 	for {
-		if layer.outputDispatcher == nil {
-			layer.sessions[connectionId].Close()
-			delete(layer.sessions, connectionId)
-			return
-		}
-
 		layer.sessionsMutex.RLock()
 		session, sessionExists = layer.sessions[connectionId]
 		layer.sessionsMutex.RUnlock()
 
 		if sessionExists {
+			if !layer.IsWorking() {
+				session.Close()
+				return
+			}
+
+			session.SetReadDeadline(time.Now().Add(timeout))
+
 			if dataLen, err := session.Read(buffer); err == nil {
 				rawPacket := buffer[:dataLen]
 
@@ -144,6 +179,12 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 					layer.outputDispatcher.Dispatch(packet)
 				}
 			} else {
+				// check if the error is a timeout
+				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+					// it is just a timeout, ignore it
+					continue
+				}
+
 				fmt.Printf("error in session %d: %s\n", connectionId, err.Error())
 				layer.outputDispatcher.Dispatch(dto.CreateInvalidPacket(connectionId))
 			}
