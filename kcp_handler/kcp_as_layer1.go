@@ -7,9 +7,9 @@ import (
 	"expansion-gateway/errors"
 	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/helpers"
-	"expansion-gateway/interfaces/commands"
 	"expansion-gateway/interfaces/dispatchers"
 	"expansion-gateway/interfaces/errorinfo"
+	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/interfaces/parsers"
 	"fmt"
 	"net"
@@ -24,7 +24,6 @@ type KcpAsLayer1 struct {
 	sessions         map[int64]*kcp.UDPSession        // all the sessions that are currently active
 	listener         *kcp.Listener                    // the kcp listener
 	outputDispatcher dispatchers.Dispatcher           // this is the channel used to communicate with the next layer
-	inputChannel     <-chan commands.Command          // the commands this layer will recive from the 2nd layer(remember, that is the decission-making layer)
 	configuration    *config.Configuration            // this is the configuration module. it contains all the config details
 	parser           parsers.ByteStreamToPacketParser // the byte array to packet parser
 	sessionsMutex    *sync.RWMutex
@@ -116,9 +115,38 @@ func (layer KcpAsLayer1) Stop() errorinfo.GatewayError {
 	return nil
 }
 
-func (layer KcpAsLayer1) ConfigureDumbLayer(outputDispatcher dispatchers.Dispatcher, inputChannel <-chan commands.Command) errorinfo.GatewayError {
+func (layer KcpAsLayer1) ConfigureDumbLayer(outputDispatcher dispatchers.Dispatcher) errorinfo.GatewayError {
 	layer.outputDispatcher = outputDispatcher
-	layer.inputChannel = inputChannel
+	return nil
+}
+
+func (layer KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayError {
+	const filePath string = "/kcp_handler/kcp_as_layer1.go"
+
+	if !layer.IsWorking() {
+		return layererrors.CreateLayerClosed_LayerError(filePath, 126, enums.LAYER_1)
+	}
+
+	sessionId := packet.GetSender()
+
+	layer.sessionsMutex.RLock()
+	session, exists := layer.sessions[sessionId]
+	layer.sessionsMutex.RUnlock()
+
+	if !exists {
+		return layererrors.CreateSessionNotRegistered_LayerError(filePath, 136, enums.LAYER_1, sessionId)
+	}
+
+	if byteArray, err := packet.Marshal(); err == nil {
+		session.SetWriteDeadline(time.Now().Add(2 * time.Second)) // timeout
+
+		if _, err := session.Write(byteArray); err != nil {
+			return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 141, err), 0)
+		}
+	} else {
+		return err
+	}
+
 	return nil
 }
 
@@ -157,7 +185,7 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 
 	var session *kcp.UDPSession = nil
 	sessionExists := true
-	timeout := time.Duration(layer.configuration.GetConnectionTimeout()) * time.Second
+	timeoutDuration := time.Duration(layer.configuration.GetConnectionTimeout()) * time.Second
 
 	for {
 		layer.sessionsMutex.RLock()
@@ -170,7 +198,7 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 				return
 			}
 
-			session.SetReadDeadline(time.Now().Add(timeout))
+			session.SetReadDeadline(time.Now().Add(timeoutDuration))
 
 			if dataLen, err := session.Read(buffer); err == nil {
 				rawPacket := buffer[:dataLen]

@@ -7,4 +7,5 @@ type Layer interface {
 	// Sends data to be processed by this layer
 	Start() errorinfo.GatewayError
 	Stop() errorinfo.GatewayError
+	IsWorking() bool
 }
