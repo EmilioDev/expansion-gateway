@@ -141,7 +141,7 @@ func (layer KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayErro
 		session.SetWriteDeadline(time.Now().Add(2 * time.Second)) // timeout
 
 		if _, err := session.Write(byteArray); err != nil {
-			return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 141, err), 0)
+			return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 143, err), 0)
 		}
 	} else {
 		return err
