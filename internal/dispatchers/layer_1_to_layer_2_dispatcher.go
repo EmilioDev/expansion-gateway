@@ -7,13 +7,13 @@ import (
 )
 
 type PacketDispatcher struct {
-	shards []chan packets.Packet
-	count  int
+	Shards []chan packets.Packet
+	Count  int
 }
 
 func (d *PacketDispatcher) Dispatch(pkt packets.Packet) {
-	index := hashPacket(pkt) % uint32(d.count)
-	d.shards[index] <- pkt
+	index := hashPacket(pkt) % uint32(d.Count)
+	d.Shards[index] <- pkt
 }
 
 func hashPacket(pkt packets.Packet) uint32 {
