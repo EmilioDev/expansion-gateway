@@ -22,7 +22,7 @@ func (err SessionNotRegisteredInLayer) SetStackTrace(stackTrace []string) errori
 
 func CreateSessionNotRegistered_LayerError(file string, index uint16, layerType enums.LayerKind, sessionId int64) SessionNotRegisteredInLayer {
 	return SessionNotRegisteredInLayer{
-		CreateLayerError(file, "layer closed", index, 9, layerType),
+		CreateLayerError(file, "layer closed", index, 10, layerType),
 		sessionId,
 	}
 }

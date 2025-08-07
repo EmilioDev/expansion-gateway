@@ -1,9 +1,11 @@
+// file: /interfaces/layers/smart_layer.go
 package layers
+
+import "expansion-gateway/interfaces/errorinfo"
 
 type SmartLayer interface {
 	Layer
 	// method for configuring layer 1
-	ConfigureFirstLayer(layer DumbLayer)
-
-	// ...later we add for layer 2 and 3
+	ConfigureFirstLayer(layer Layer1) errorinfo.GatewayError
+	ConfigureThirdLayer(layer Layer3) errorinfo.GatewayError
 }

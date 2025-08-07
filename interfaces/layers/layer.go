@@ -1,3 +1,4 @@
+// file: /interfaces/layers/layer.go
 package layers
 
 import "expansion-gateway/interfaces/errorinfo"

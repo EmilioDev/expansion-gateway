@@ -1,0 +1,6 @@
+// file: /interfaces/layers/layer2.go
+package layers
+
+type Layer2 interface {
+	SmartLayer
+}
