@@ -11,6 +11,7 @@ import (
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/interfaces/parsers"
+	"expansion-gateway/internal/structs"
 	"fmt"
 	"net"
 	"sync"
@@ -21,13 +22,12 @@ import (
 )
 
 type KcpAsLayer1 struct {
-	sessions         map[int64]*kcp.UDPSession        // all the sessions that are currently active
-	listener         *kcp.Listener                    // the kcp listener
-	outputDispatcher dispatchers.Dispatcher           // this is the channel used to communicate with the next layer
-	configuration    *config.Configuration            // this is the configuration module. it contains all the config details
-	parser           parsers.ByteStreamToPacketParser // the byte array to packet parser
-	sessionsMutex    *sync.RWMutex
-	working          *atomic.Bool
+	sessions         *structs.SessionsDictionary[*kcp.UDPSession] // all the sessions that are currently active
+	listener         *kcp.Listener                                // the kcp listener
+	outputDispatcher dispatchers.Dispatcher                       // this is the channel used to communicate with the next layer
+	configuration    *config.Configuration                        // this is the configuration module. it contains all the config details
+	parser           parsers.ByteStreamToPacketParser             // the byte array to packet parser
+	working          *atomic.Bool                                 // tells you if this layer is working or not
 	shutdownOnce     *sync.Once
 	wg               *sync.WaitGroup
 }
@@ -35,11 +35,10 @@ type KcpAsLayer1 struct {
 func CreateNewKcpLayer1(configuration *config.Configuration,
 	parser parsers.ByteStreamToPacketParser) *KcpAsLayer1 {
 	result := &KcpAsLayer1{
-		sessions:      make(map[int64]*kcp.UDPSession),
+		sessions:      structs.CreateNewSessionDictionary[*kcp.UDPSession](),
 		listener:      nil,
 		configuration: configuration,
 		parser:        parser,
-		sessionsMutex: &sync.RWMutex{},
 		working:       &atomic.Bool{},
 		shutdownOnce:  &sync.Once{},
 		wg:            &sync.WaitGroup{},
@@ -100,14 +99,7 @@ func (layer KcpAsLayer1) Stop() errorinfo.GatewayError {
 		}
 
 		// closing the sessions
-		layer.sessionsMutex.Lock()
-		defer layer.sessionsMutex.Unlock()
-
-		layer.wg.Wait()
-
-		for id := range layer.sessions {
-			delete(layer.sessions, id)
-		}
+		layer.sessions.Clear()
 
 		fmt.Println("Gateway exited")
 	})
@@ -129,9 +121,7 @@ func (layer KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayErro
 
 	sessionId := packet.GetSender()
 
-	layer.sessionsMutex.RLock()
-	session, exists := layer.sessions[sessionId]
-	layer.sessionsMutex.RUnlock()
+	session, exists := layer.sessions.GetExists(sessionId)
 
 	if !exists {
 		return layererrors.CreateSessionNotRegistered_LayerError(filePath, 136, enums.LAYER_1, sessionId)
@@ -159,18 +149,15 @@ func (layer *KcpAsLayer1) process() {
 		if session, err := layer.listener.AcceptKCP(); err == nil {
 			connectionId := helpers.GenerateRandomInt64()
 
-			layer.sessionsMutex.Lock()
 			for {
-				if _, exists := layer.sessions[connectionId]; !exists {
+				if exists := layer.sessions.Exists(connectionId); !exists {
 					break
 				}
 
 				connectionId = helpers.GenerateRandomInt64()
 			}
 
-			layer.sessions[connectionId] = session
-
-			layer.sessionsMutex.Unlock()
+			layer.sessions.Store(session, connectionId)
 
 			layer.wg.Add(1)
 			go layer.handleSession(connectionId)
@@ -188,9 +175,7 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 	timeoutDuration := time.Duration(layer.configuration.GetConnectionTimeout()) * time.Second
 
 	for {
-		layer.sessionsMutex.RLock()
-		session, sessionExists = layer.sessions[connectionId]
-		layer.sessionsMutex.RUnlock()
+		session, sessionExists = layer.sessions.GetExists(connectionId)
 
 		if sessionExists {
 			if !layer.IsWorking() {
