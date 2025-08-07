@@ -1,3 +1,4 @@
+// file: /interfaces/packets/packet.go
 package packets
 
 import (

@@ -2,6 +2,7 @@ packet cycle:
   client:   hello           connect
 
   server:         challenge         connected/redirect/disconnect
+
 packet types:
     hello:
         a b c d e f g g g g g g g g
@@ -54,3 +55,22 @@ packet types:
             - flags: for now, the last bit tells you if this is a session resume, and the previous bit tells you if this client is going to encrupt their payloads or not [required]
             - encryptation: it tells you which encryptation algorythm is going to be used in the payload [only present if encryptation flag is true]
             - session id: it tells you which session id this connection tries to resume [only present if session resume flag is true]
+
+    challenge:
+      a bbbbbbbbbb...
+      | |
+      p c
+      a h
+      c a
+      k l
+      e l
+      t e
+        n
+      t g
+      y e
+      p
+      e
+
+      where:
+        - packet type: the type of packet(challenge in this case) [required]
+        - challenge: the challenge the client has to solve in order to prove identity [required]
