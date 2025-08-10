@@ -2,6 +2,7 @@ package layererrors
 
 import (
 	"expansion-gateway/enums"
+	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
 )
 
@@ -17,4 +18,9 @@ func CreateDumbLayersNotConfigured_LayerError(file string, index uint16, layerTy
 		layer1,
 		layer3,
 	}
+}
+
+func (err DumbLayersNotConfigured) SetStackTrace(stackTrace []string) errorinfo.GatewayError {
+	err.StackTrace = stackTrace
+	return &err
 }

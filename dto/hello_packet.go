@@ -24,6 +24,22 @@ type HelloPacketVariableHeader struct {
 	PretendedUserID  int64                     // the id of the previously open session this user wants to continue using
 }
 
+func CreateHelloPacket(sender int64) *HelloPacket {
+	return &HelloPacket{
+		Sender: sender,
+		VariableHeader: &HelloPacketVariableHeader{
+			BaseHeader:       BaseHeader{},
+			ProtocolVersion:  enums.V1,
+			ClientType:       enums.CLI_TOOL,
+			ClientVersion:    1,
+			PayloadEncrypted: false,
+			SessionResume:    false,
+			Encryption:       enums.NoEncryptionAlgorithm,
+			PretendedUserID:  0,
+		},
+	}
+}
+
 func (packet HelloPacket) GetPacketType() enums.PacketType {
 	return enums.HELLO
 }
@@ -67,7 +83,7 @@ func (packet HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	answer = append(answer, currentByte)
 
 	if packet.VariableHeader.PayloadEncrypted {
-		if packet.VariableHeader.Encryption < enums.MaxEncryptionAlgorythm {
+		if packet.VariableHeader.Encryption < enums.NoEncryptionAlgorithm {
 			answer = append(answer, byte(packet.VariableHeader.Encryption))
 		} else {
 			return nil, errors.CreatePacketWithInvalidEncryptionAlgorythm(

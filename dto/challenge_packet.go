@@ -37,3 +37,11 @@ func (packet ChallengePacket) Marshal() ([]byte, errorinfo.GatewayError) {
 func (packet ChallengePacket) GetSender() int64 {
 	return packet.UserId
 }
+
+func GenerateChallengePacket(userId int64, challenge *[]byte) *ChallengePacket {
+	return &ChallengePacket{
+		BaseHeader{},
+		userId,
+		*challenge,
+	}
+}

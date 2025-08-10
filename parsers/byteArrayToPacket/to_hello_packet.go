@@ -17,10 +17,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 		return nil, errors.CreateInvalidPacketSizeError(filePath, 15, enums.HELLO, byteArraySize)
 	}
 
-	answer := dto.HelloPacket{
-		Sender:         connectionID,
-		VariableHeader: &dto.HelloPacketVariableHeader{},
-	}
+	answer := dto.CreateHelloPacket(connectionID)
 
 	// check protocol version
 	currentByte := (*byteArray)[1]
@@ -103,7 +100,7 @@ func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, error
 		//index+=8 // not needed if this is the last thing to do
 	}
 
-	return &answer, nil
+	return answer, nil
 }
 
 // this function is for checking if the flags byte is, in general, ok
