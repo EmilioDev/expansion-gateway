@@ -30,6 +30,8 @@ func GenerateNewLayer2Session() *Layer2Session {
 	s := &Layer2Session{
 		challenge:     nil,
 		subscriptions: make(map[string]struct{}),
+		challengeMu:   sync.RWMutex{},
+		subsMu:        sync.RWMutex{},
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))
