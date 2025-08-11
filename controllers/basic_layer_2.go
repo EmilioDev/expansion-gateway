@@ -53,7 +53,7 @@ func (layer BasicLayer2) Start() errorinfo.GatewayError {
 	if layer.layer1 == nil || layer.layer3 == nil {
 		return layererrors.CreateDumbLayersNotConfigured_LayerError(
 			"/controllers/basic_layer_2.go",
-			47,
+			53,
 			enums.LAYER_2,
 			layer.layer1,
 			layer.layer3)
@@ -91,9 +91,6 @@ func (layer BasicLayer2) Stop() errorinfo.GatewayError {
 			return err
 		}
 	}
-
-	layer.layer1.Stop()
-	layer.layer3.Stop()
 
 	return nil
 }
@@ -141,10 +138,10 @@ func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinf
 		// handle later a not hello packet, but that should not occur
 		// if the architecture is respected
 
-	case enums.CHALLENGE: // client should never send a challenge
+	case enums.CHALLENGE: // clients should never send a challenge
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			144,
+			141,
 			enums.LAYER_2,
 			enums.CLIENT_SENT_CHALLENGE)
 	}
@@ -155,6 +152,8 @@ func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinf
 func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.GatewayError {
 	clientId := packet.GetSender()
 	const filePath string = "/controllers/basic_layer_2.go"
+	var newChallenge []byte
+	var err errorinfo.GatewayError = nil
 
 	// if the session exists
 	if sessionStored, sessionExist := layer.sessions.GetExists(clientId); sessionExist {
@@ -165,18 +164,20 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 		}
 
 		// we update the session from the hello packet
-		updateLayer2SessionFromHelloPacket(sessionStored, packet)
+		sessionStored.UpdateFromHelloPacket(packet)
 
 		// we generate a new challenge nonce, and use it to generate a challenge packet,
 		// send the packet to the client, and store the nonce for later check
-		if newChallenge, err := helpers.GenerateChallengeNonce(); err == nil {
+		if newChallenge, err = helpers.GenerateChallengeNonce(); err == nil {
 			sessionStored.SetChallenge(&newChallenge)
-			newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
-
-			return layer.layer1.SendPacket(newChallengePacket)
 		} else {
-			return layer.layer1.SendPacket(packet)
+			newChallenge = helpers.GetDefaultChallengeNonce()
+			sessionStored.SetChallenge(&newChallenge)
 		}
+
+		newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
+
+		return layer.layer1.SendPacket(newChallengePacket)
 	}
 
 	// the session does not exist
@@ -184,14 +185,14 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 	newSession := dto.GenerateNewLayer2Session()
 
 	// we update the session from the hello packet
-	updateLayer2SessionFromHelloPacket(newSession, packet)
+	newSession.UpdateFromHelloPacket(packet)
 
 	// store the session
 	layer.sessions.Store(newSession, clientId)
 
 	// we generate a new challenge nonce, and use it to generate a challenge packet,
 	// send the packet to the client, and store the nonce for later check
-	if newChallenge, err := helpers.GenerateChallengeNonce(); err == nil {
+	if newChallenge, err = helpers.GenerateChallengeNonce(); err == nil {
 		newSession.SetChallenge(&newChallenge)
 		newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
 
@@ -216,40 +217,6 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 	}
 
 	return nil
-}
-
-func updateLayer2SessionFromHelloPacket(session *dto.Layer2Session, packet *dto.HelloPacket) {
-	// lock packet to avoid race conditions
-	// session.SessionStateMutex.Lock()
-	// defer session.SessionStateMutex.Unlock()
-
-	// encryption used in the payload
-	if !packet.VariableHeader.PayloadEncrypted {
-		session.SetEncryption(enums.NoEncryptionAlgorithm)
-	} else if enums.IsValidEncryptionAlgorythm(byte(packet.VariableHeader.Encryption)) {
-		session.SetEncryption(packet.VariableHeader.Encryption)
-	} else {
-		session.SetEncryption(enums.NoEncryptionAlgorithm)
-	}
-
-	// session resume
-	session.SetSessionResume(packet.VariableHeader.SessionResume)
-
-	// client version
-	session.SetClientVersion(packet.VariableHeader.ClientVersion)
-
-	// client type
-	session.SetClientType(packet.VariableHeader.ClientType)
-
-	// protocol version
-	session.SetProtocolVersion(packet.VariableHeader.ProtocolVersion)
-
-	// requested session id to resume
-	if session.GetSessionResume() {
-		session.SetRequestedSessionId(packet.VariableHeader.PretendedUserID)
-	} else {
-		session.SetRequestedSessionId(0)
-	}
 }
 
 // constructor

@@ -1,3 +1,4 @@
+// file: /enums/flow_violation_kind.go
 package enums
 
 type FlowViolationKind byte

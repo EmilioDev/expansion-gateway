@@ -23,15 +23,19 @@ type Layer2Session struct {
 
 	subsMu        sync.RWMutex
 	subscriptions map[string]struct{}
+
+	// for the bulk updaters
+	bulkUpdaterMutex sync.Mutex
 }
 
 // GenerateNewLayer2Session creates a new Layer2Session with default values
 func GenerateNewLayer2Session() *Layer2Session {
 	s := &Layer2Session{
-		challenge:     nil,
-		subscriptions: make(map[string]struct{}),
-		challengeMu:   sync.RWMutex{},
-		subsMu:        sync.RWMutex{},
+		challenge:        nil,
+		subscriptions:    make(map[string]struct{}),
+		challengeMu:      sync.RWMutex{},
+		subsMu:           sync.RWMutex{},
+		bulkUpdaterMutex: sync.Mutex{},
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))
@@ -183,4 +187,39 @@ func (s *Layer2Session) GetSessionResume() bool {
 
 func (s *Layer2Session) SetSessionResume(resume bool) {
 	s.sessionResume.Store(resume)
+}
+
+// ==== Bulk updaters ====
+func (session *Layer2Session) UpdateFromHelloPacket(packet *HelloPacket) {
+	// lock packet to avoid race conditions
+	session.bulkUpdaterMutex.Lock()
+	defer session.bulkUpdaterMutex.Unlock()
+
+	// encryption used in the payload
+	if !packet.VariableHeader.PayloadEncrypted {
+		session.SetEncryption(enums.NoEncryptionAlgorithm)
+	} else if enums.IsValidEncryptionAlgorythm(byte(packet.VariableHeader.Encryption)) {
+		session.SetEncryption(packet.VariableHeader.Encryption)
+	} else {
+		session.SetEncryption(enums.NoEncryptionAlgorithm)
+	}
+
+	// session resume
+	session.SetSessionResume(packet.VariableHeader.SessionResume)
+
+	// client version
+	session.SetClientVersion(packet.VariableHeader.ClientVersion)
+
+	// client type
+	session.SetClientType(packet.VariableHeader.ClientType)
+
+	// protocol version
+	session.SetProtocolVersion(packet.VariableHeader.ProtocolVersion)
+
+	// requested session id to resume
+	if session.GetSessionResume() {
+		session.SetRequestedSessionId(packet.VariableHeader.PretendedUserID)
+	} else {
+		session.SetRequestedSessionId(0)
+	}
 }

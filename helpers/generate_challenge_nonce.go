@@ -23,9 +23,10 @@ func GenerateChallengeNonce() ([]byte, errorinfo.GatewayError) {
 }
 
 func GetDefaultChallengeNonce() []byte {
-	answer := []byte{}
+	const CHALLENGE_LEN int = 32
+	answer := make([]byte, 0, CHALLENGE_LEN)
 
-	for x := 0; x < 32; x++ {
+	for x := 0; x < CHALLENGE_LEN; x++ {
 		answer = append(answer, byte(x))
 	}
 

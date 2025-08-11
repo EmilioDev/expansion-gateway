@@ -1,3 +1,4 @@
+// file: /errors/layererrors/protocol_flow_violation.go
 package layererrors
 
 import (
