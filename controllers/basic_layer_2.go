@@ -144,6 +144,13 @@ func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinf
 			141,
 			enums.LAYER_2,
 			enums.CLIENT_SENT_CHALLENGE)
+
+	case enums.NONE: //the layer 1 received an invalid packet
+		return layererrors.CreateProtocolFlowViolation_LayerError(
+			filePath,
+			148,
+			enums.LAYER_2,
+			enums.INVALID_PACKET)
 	}
 
 	return nil
