@@ -197,29 +197,29 @@ func (session *Layer2Session) UpdateFromHelloPacket(packet *HelloPacket) {
 
 	// encryption used in the payload
 	if !packet.VariableHeader.PayloadEncrypted {
-		session.SetEncryption(enums.NoEncryptionAlgorithm)
+		session.encryption.Store(int32(enums.NoEncryptionAlgorithm))
 	} else if enums.IsValidEncryptionAlgorythm(byte(packet.VariableHeader.Encryption)) {
-		session.SetEncryption(packet.VariableHeader.Encryption)
+		session.encryption.Store(int32(packet.VariableHeader.Encryption))
 	} else {
-		session.SetEncryption(enums.NoEncryptionAlgorithm)
+		session.encryption.Store(int32(enums.NoEncryptionAlgorithm))
 	}
 
 	// session resume
-	session.SetSessionResume(packet.VariableHeader.SessionResume)
+	session.sessionResume.Store(packet.VariableHeader.SessionResume)
 
 	// client version
-	session.SetClientVersion(packet.VariableHeader.ClientVersion)
+	session.clientVersion.Store(uint32(packet.VariableHeader.ClientVersion))
 
 	// client type
-	session.SetClientType(packet.VariableHeader.ClientType)
+	session.clientType.Store(int32(packet.VariableHeader.ClientType))
 
 	// protocol version
-	session.SetProtocolVersion(packet.VariableHeader.ProtocolVersion)
+	session.protocolVersion.Store(int32(packet.VariableHeader.ProtocolVersion))
 
 	// requested session id to resume
 	if session.GetSessionResume() {
-		session.SetRequestedSessionId(packet.VariableHeader.PretendedUserID)
+		session.requestedSessionId.Store(packet.VariableHeader.PretendedUserID)
 	} else {
-		session.SetRequestedSessionId(0)
+		session.requestedSessionId.Store(0)
 	}
 }
