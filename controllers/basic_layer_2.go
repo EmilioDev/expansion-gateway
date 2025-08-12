@@ -107,6 +107,9 @@ func (layer *BasicLayer2) initializeLayer3Listeners() {
 	// Reserved for later
 }
 
+// ==== packet listeners ====
+
+// layer 1 packet listener
 func (layer *BasicLayer2) listenLayer1(shardIndex int) {
 	channel := layer.layer1Reciver.GetShard(shardIndex)
 
@@ -117,7 +120,9 @@ func (layer *BasicLayer2) listenLayer1(shardIndex int) {
 				return
 			}
 
-			layer.handlePacketFromLayer1(packet)
+			if err := layer.handlePacketFromLayer1(packet); err != nil {
+				layer.closeSessionForInvalidPacket(packet.GetSender())
+			}
 
 		default:
 			time.Sleep(time.Millisecond * 10) // Yield CPU, prevent tight loop
@@ -125,6 +130,9 @@ func (layer *BasicLayer2) listenLayer1(shardIndex int) {
 	}
 }
 
+// ==== layer 1 packet handlers ====
+
+// global packet handler from layer 1
 func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinfo.GatewayError {
 	const filePath string = "/controllers/basic_layer_2.go"
 
@@ -156,35 +164,45 @@ func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinf
 	return nil
 }
 
+// layer 1 hello packet handler
 func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.GatewayError {
 	clientId := packet.GetSender()
 	const filePath string = "/controllers/basic_layer_2.go"
 	var newChallenge []byte
 	var err errorinfo.GatewayError = nil
 
-	// if the session exists
+	// if the session exists, then this is a retry packet
 	if sessionStored, sessionExist := layer.sessions.GetExists(clientId); sessionExist {
-		// if the state of the session is not CHALLENGE_SENT, then this is an invalid packet
-		if sessionStored.GetState() != enums.CHALLENGE_SENT {
-			// apply the corresponding measure for sending invalid packet
-			return layererrors.CreateProtocolFlowViolation_LayerError(filePath, 150, enums.LAYER_2, enums.INVALID_HELLO)
+		connectionState := sessionStored.GetState()
+
+		// we check if the current state of the connection allows retrying hello
+		if connectionState == enums.CHALLENGE_SENT || connectionState == enums.HELLO_RECEIVED {
+			// we update the session from the hello packet (this is a retry hello)
+			sessionStored.UpdateFromHelloPacket(packet)
+
+			// we generate a new challenge nonce, and use it to generate a challenge packet,
+			// send the packet to the client, and store the nonce for later check
+			if newChallenge, err = helpers.GenerateChallengeNonce(); err == nil {
+				sessionStored.SetChallenge(&newChallenge)
+			} else {
+				newChallenge = helpers.GetDefaultChallengeNonce()
+				sessionStored.SetChallenge(&newChallenge)
+			}
+
+			newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
+
+			if err = layer.layer1.SendPacket(newChallengePacket); err == nil {
+				if connectionState == enums.HELLO_RECEIVED {
+					sessionStored.SetState(enums.CHALLENGE_SENT)
+				}
+			}
+
+			return err
 		}
 
-		// we update the session from the hello packet
-		sessionStored.UpdateFromHelloPacket(packet)
-
-		// we generate a new challenge nonce, and use it to generate a challenge packet,
-		// send the packet to the client, and store the nonce for later check
-		if newChallenge, err = helpers.GenerateChallengeNonce(); err == nil {
-			sessionStored.SetChallenge(&newChallenge)
-		} else {
-			newChallenge = helpers.GetDefaultChallengeNonce()
-			sessionStored.SetChallenge(&newChallenge)
-		}
-
-		newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
-
-		return layer.layer1.SendPacket(newChallengePacket)
+		// if the state of the session is not CHALLENGE_SENT or HELLO_RECEIVED, then this is an invalid packet
+		// apply the corresponding measure for sending invalid packet
+		return layererrors.CreateProtocolFlowViolation_LayerError(filePath, 205, enums.LAYER_2, enums.INVALID_HELLO)
 	}
 
 	// the session does not exist
@@ -226,7 +244,25 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 	return nil
 }
 
-// constructor
+// ==== error handlers ====
+
+// invalid packet handler
+func (layer *BasicLayer2) closeSessionForInvalidPacket(sessionId int64) {
+	if layer.layer1 != nil {
+		// we need to send the disconnect packet first
+		// do not forget to add it!!!
+		layer.layer1.CloseSession(sessionId)
+	}
+
+	if layer.layer3 != nil {
+		// the same as in layer 1
+		layer.layer3.CloseSession(sessionId)
+	}
+
+	layer.sessions.Delete(sessionId)
+}
+
+// ==== constructor ====
 func CreateNewBasicLayer2(conf *config.Configuration) *BasicLayer2 {
 	var working atomic.Bool
 	working.Store(false)

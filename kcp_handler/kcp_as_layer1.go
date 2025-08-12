@@ -140,6 +140,15 @@ func (layer KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayErro
 	return nil
 }
 
+func (layer KcpAsLayer1) CloseSession(sessionId int64) errorinfo.GatewayError {
+	if connection, exists := layer.sessions.GetExists(sessionId); exists {
+		layer.sessions.Delete(sessionId)
+		connection.Close()
+	}
+
+	return nil
+}
+
 func (layer *KcpAsLayer1) listenFromInputChannel() {
 	// for now, still pending...
 }
@@ -175,15 +184,15 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 	timeoutDuration := time.Duration(layer.configuration.GetConnectionTimeout()) * time.Second
 
 	for {
-		session, sessionExists = layer.sessions.GetExists(connectionId)
-
-		if sessionExists {
+		if session, sessionExists = layer.sessions.GetExists(connectionId); sessionExists {
 			if !layer.IsWorking() {
 				session.Close()
 				return
 			}
 
-			session.SetReadDeadline(time.Now().Add(timeoutDuration))
+			if err := session.SetReadDeadline(time.Now().Add(timeoutDuration)); err != nil {
+				continue
+			}
 
 			if dataLen, err := session.Read(buffer); err == nil {
 				rawPacket := buffer[:dataLen]
