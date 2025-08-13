@@ -114,7 +114,7 @@ func (store *SessionsDictionary[T]) Keys() []int64 {
 	store.sessionsMutex.RLock()
 	defer store.sessionsMutex.RUnlock()
 
-	answer := make([]int64, 0, store.Len())
+	answer := make([]int64, 0, len(store.sessions))
 
 	for index := range store.sessions {
 		answer = append(answer, index)
@@ -128,7 +128,7 @@ func (store *SessionsDictionary[T]) Values() []T {
 	store.sessionsMutex.RLock()
 	defer store.sessionsMutex.RUnlock()
 
-	answer := make([]T, 0, store.Len())
+	answer := make([]T, 0, len(store.sessions))
 
 	for _, value := range store.sessions {
 		answer = append(answer, value)
