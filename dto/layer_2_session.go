@@ -2,6 +2,7 @@
 package dto
 
 import (
+	"expansion-gateway/config"
 	"expansion-gateway/enums"
 	"sync"
 	"sync/atomic"
@@ -26,16 +27,20 @@ type Layer2Session struct {
 
 	// for the bulk updaters
 	bulkUpdaterMutex sync.Mutex
+
+	// timeout tracker
+	timeoutTracker *TimeoutTracker
 }
 
 // GenerateNewLayer2Session creates a new Layer2Session with default values
-func GenerateNewLayer2Session() *Layer2Session {
+func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 	s := &Layer2Session{
 		challenge:        nil,
 		subscriptions:    make(map[string]struct{}),
 		challengeMu:      sync.RWMutex{},
 		subsMu:           sync.RWMutex{},
 		bulkUpdaterMutex: sync.Mutex{},
+		timeoutTracker:   NewTimeoutTracker(config.GetSessionTimeout()),
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))
@@ -135,7 +140,7 @@ func (s *Layer2Session) RemoveSubscription(topic string) {
 	delete(s.subscriptions, topic)
 }
 
-// ===== RequestedSessionId =====
+// ===== Requested Session Id =====
 func (s *Layer2Session) GetRequestedSessionId() int64 {
 	return s.requestedSessionId.Load()
 }
@@ -144,7 +149,7 @@ func (s *Layer2Session) SetRequestedSessionId(id int64) {
 	s.requestedSessionId.Store(id)
 }
 
-// ===== ProtocolVersion =====
+// ===== Protocol Version =====
 func (s *Layer2Session) GetProtocolVersion() enums.ProtocolVersion {
 	return enums.ProtocolVersion(s.protocolVersion.Load())
 }
@@ -153,7 +158,7 @@ func (s *Layer2Session) SetProtocolVersion(v enums.ProtocolVersion) {
 	s.protocolVersion.Store(int32(v))
 }
 
-// ===== ClientType =====
+// ===== Client Type =====
 func (s *Layer2Session) GetClientType() enums.ClientType {
 	return enums.ClientType(s.clientType.Load())
 }
@@ -162,7 +167,7 @@ func (s *Layer2Session) SetClientType(t enums.ClientType) {
 	s.clientType.Store(int32(t))
 }
 
-// ===== ClientVersion =====
+// ===== Client Version =====
 func (s *Layer2Session) GetClientVersion() byte {
 	return byte(s.clientVersion.Load())
 }
@@ -180,13 +185,27 @@ func (s *Layer2Session) SetEncryption(e enums.EncryptionAlgorithm) {
 	s.encryption.Store(int32(e))
 }
 
-// ===== SessionResume =====
+// ===== Session Resume =====
 func (s *Layer2Session) GetSessionResume() bool {
 	return s.sessionResume.Load()
 }
 
 func (s *Layer2Session) SetSessionResume(resume bool) {
 	s.sessionResume.Store(resume)
+}
+
+// ==== Session Timeout ====
+
+// TimeoutTracker returns the pointer to the tracker's object.
+func (s *Layer2Session) TimeoutTracker() *TimeoutTracker {
+	return s.timeoutTracker
+}
+
+// RefreshActivity marks activity now.
+func (s *Layer2Session) RefreshActivity() {
+	if s.timeoutTracker != nil {
+		s.timeoutTracker.Refresh()
+	}
 }
 
 // ==== Bulk updaters ====

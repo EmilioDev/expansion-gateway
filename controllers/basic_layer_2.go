@@ -13,6 +13,7 @@ import (
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/internal/others"
 	"expansion-gateway/internal/structs"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -24,6 +25,7 @@ type BasicLayer2 struct {
 	configuration *config.Configuration
 	layer1Reciver disp.Reciver
 	sessions      *structs.SessionsDictionary[*dto.Layer2Session]
+	wg            *sync.WaitGroup
 }
 
 func (layer BasicLayer2) ConfigureFirstLayer(target layers.Layer1) errorinfo.GatewayError {
@@ -74,6 +76,10 @@ func (layer BasicLayer2) Start() errorinfo.GatewayError {
 	layer.initializeLayer1Listeners()
 	layer.initializeLayer3Listeners()
 
+	// start session timeout manager
+	layer.wg.Add(1)
+	go layer.sessionTimeoutWatcher()
+
 	return nil
 }
 
@@ -92,6 +98,8 @@ func (layer BasicLayer2) Stop() errorinfo.GatewayError {
 		}
 	}
 
+	layer.wg.Wait()
+
 	return nil
 }
 
@@ -99,6 +107,7 @@ func (layer *BasicLayer2) initializeLayer1Listeners() {
 	shards := layer.layer1Reciver.ShardCount()
 
 	for x := 0; x < shards; x++ {
+		layer.wg.Add(1)
 		go layer.listenLayer1(x)
 	}
 }
@@ -112,6 +121,7 @@ func (layer *BasicLayer2) initializeLayer3Listeners() {
 // layer 1 packet listener
 func (layer *BasicLayer2) listenLayer1(shardIndex int) {
 	channel := layer.layer1Reciver.GetShard(shardIndex)
+	defer layer.wg.Done()
 
 	for layer.IsWorking() {
 		select {
@@ -121,7 +131,23 @@ func (layer *BasicLayer2) listenLayer1(shardIndex int) {
 			}
 
 			if err := layer.handlePacketFromLayer1(packet); err != nil {
-				layer.closeSessionForInvalidPacket(packet.GetSender())
+				sessionToClose := packet.GetSender()
+
+				switch err.GetErrorCode() {
+				case 13: // protocol violation
+					layer.closeSession(sessionToClose, enums.CloseReasonProtocolViolation)
+
+				case 8, 9, 10, 11, 12:
+					layer.closeSession(sessionToClose, enums.CloseReasonInternalError)
+
+				case 0, 1, 2, 3, 4, 5, 6: // packet error
+					layer.closeSession(sessionToClose, enums.CloseReasonInvalidPacket)
+
+				case 7: // external error
+					fallthrough
+				default:
+					layer.closeSession(sessionToClose, enums.CloseReasonUnknown)
+				}
 			}
 
 		default:
@@ -174,6 +200,7 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 	// if the session exists, then this is a retry packet
 	if sessionStored, sessionExist := layer.sessions.GetExists(clientId); sessionExist {
 		connectionState := sessionStored.GetState()
+		sessionStored.RefreshActivity()
 
 		// we check if the current state of the connection allows retrying hello
 		if connectionState == enums.CHALLENGE_SENT || connectionState == enums.HELLO_RECEIVED {
@@ -207,7 +234,7 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 
 	// the session does not exist
 	// then we generate a new one
-	newSession := dto.GenerateNewLayer2Session()
+	newSession := dto.GenerateNewLayer2Session(layer.configuration)
 
 	// we update the session from the hello packet
 	newSession.UpdateFromHelloPacket(packet)
@@ -247,7 +274,7 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 // ==== error handlers ====
 
 // invalid packet handler
-func (layer *BasicLayer2) closeSessionForInvalidPacket(sessionId int64) {
+func (layer *BasicLayer2) closeSession(sessionId int64, reason enums.SessionCloseReason) {
 	if layer.layer1 != nil {
 		// we need to send the disconnect packet first
 		// do not forget to add it!!!
@@ -262,6 +289,41 @@ func (layer *BasicLayer2) closeSessionForInvalidPacket(sessionId int64) {
 	layer.sessions.Delete(sessionId)
 }
 
+// ==== timeout watcher ====
+
+func (layer *BasicLayer2) sessionTimeoutWatcher() {
+	defer layer.wg.Done()
+
+	checkPeriod := layer.configuration.GetSessionWatcherPeriod()
+
+	if checkPeriod <= 0 {
+		checkPeriod = time.Second
+	}
+
+	ticker := time.NewTicker(checkPeriod)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if !layer.IsWorking() {
+			return
+		}
+
+		keys := layer.sessions.Keys()
+
+		for _, key := range keys {
+			if session, exists := layer.sessions.GetExists(key); exists {
+				if session.TimeoutTracker().Expired() {
+					if session.GetState() == enums.CHALLENGE_SENT {
+						layer.closeSession(key, enums.CloseReasonChallengeTimeout)
+					} else {
+						layer.closeSession(key, enums.CloseReasonIdleTimeout)
+					}
+				}
+			}
+		}
+	}
+}
+
 // ==== constructor ====
 func CreateNewBasicLayer2(conf *config.Configuration) *BasicLayer2 {
 	var working atomic.Bool
@@ -273,5 +335,6 @@ func CreateNewBasicLayer2(conf *config.Configuration) *BasicLayer2 {
 		configuration: conf,
 		working:       &working,
 		sessions:      structs.CreateNewSessionDictionary[*dto.Layer2Session](),
+		wg:            &sync.WaitGroup{},
 	}
 }

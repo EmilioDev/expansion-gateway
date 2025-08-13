@@ -17,7 +17,7 @@ func (store *SessionsDictionary[T]) Store(data T, index int64) {
 	store.sessionsMutex.Unlock()
 }
 
-// checks if an element exists in the collection
+// checks if an index has elements in the collection or not
 func (store *SessionsDictionary[T]) Exists(index int64) bool {
 	store.sessionsMutex.RLock()
 	_, exists := store.sessions[index]
@@ -62,11 +62,13 @@ func (store *SessionsDictionary[T]) Swap(index1, index2 int64) {
 	store.sessionsMutex.Unlock()
 }
 
-// moves one element to another index, completely replacingthe value of the new index
+// moves one element to another index, completely replacingthe value of the new index,
+// and the old index gets empty
 func (store *SessionsDictionary[T]) MoveTo(index1, index2 int64) {
 	store.sessionsMutex.Lock()
 
 	store.sessions[index2] = store.sessions[index1]
+	delete(store.sessions, index1)
 
 	store.sessionsMutex.Unlock()
 }
@@ -105,6 +107,34 @@ func (store *SessionsDictionary[T]) Len() int {
 	defer store.sessionsMutex.RUnlock()
 
 	return len(store.sessions)
+}
+
+// returns the keys stored in the collection
+func (store *SessionsDictionary[T]) Keys() []int64 {
+	store.sessionsMutex.RLock()
+	defer store.sessionsMutex.RUnlock()
+
+	answer := make([]int64, 0, store.Len())
+
+	for index := range store.sessions {
+		answer = append(answer, index)
+	}
+
+	return answer
+}
+
+// returns the values stored in the collection
+func (store *SessionsDictionary[T]) Values() []T {
+	store.sessionsMutex.RLock()
+	defer store.sessionsMutex.RUnlock()
+
+	answer := make([]T, 0, store.Len())
+
+	for _, value := range store.sessions {
+		answer = append(answer, value)
+	}
+
+	return answer
 }
 
 // creates a new session dictionary

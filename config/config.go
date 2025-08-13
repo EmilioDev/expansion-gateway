@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	dotenv "github.com/joho/godotenv"
 )
 
 type Configuration struct {
-	port            uint16
-	bufferSize      int
-	shardCount      int
-	shardBufferSize int
-	timeout         int
+	port                 uint16        // the port used by the layer 1 to listen for connections
+	bufferSize           int           // the max size of each packet
+	shardCount           int           // number of channels to be used between the dispatchers and the receivers
+	shardBufferSize      int           // the number of packets that should be buffered in the packet receivers between the layers
+	timeout              int           // the connection timeout of each client to the layer 1
+	sessionTimeout       time.Duration // time each session has to do any activity before being declared as inactive and then deleted (seconds)
+	sessionWatcherPeriod time.Duration // the watcher period, the time between each check to see if there is an idle session (milliseconds)
 }
 
 // Initialices this module
@@ -27,6 +30,8 @@ func (conf *Configuration) Initialize() {
 	conf.shardCount = 8
 	conf.shardBufferSize = 1024
 	conf.timeout = 1
+	conf.sessionTimeout = 30 * time.Second      // default: 30s session timeout
+	conf.sessionWatcherPeriod = 1 * time.Second // default: check every 1s
 
 	// port
 	stringPort := os.Getenv("PORT")
@@ -66,6 +71,21 @@ func (conf *Configuration) Initialize() {
 			conf.timeout = num
 		}
 	}
+
+	// session timeout (seconds)
+	if s := os.Getenv("SESSION_TIMEOUT_SECONDS"); s != "" {
+		if sec, err := strconv.Atoi(s); err == nil && sec >= 0 {
+			conf.sessionTimeout = time.Duration(sec) * time.Second
+		}
+	}
+
+	// session watcher period (seconds)
+	if s := os.Getenv("SESSION_WATCHER_PERIOD_MS"); s != "" {
+		// allow ms, parse int
+		if ms, err := strconv.Atoi(s); err == nil && ms > 0 {
+			conf.sessionWatcherPeriod = time.Duration(ms) * time.Millisecond
+		}
+	}
 }
 
 // returns the server address to be used in this server
@@ -87,4 +107,12 @@ func (conf *Configuration) GetShardBufferSize() int {
 
 func (conf *Configuration) GetConnectionTimeout() int {
 	return conf.timeout
+}
+
+func (conf *Configuration) GetSessionTimeout() time.Duration {
+	return conf.sessionTimeout
+}
+
+func (conf *Configuration) GetSessionWatcherPeriod() time.Duration {
+	return conf.sessionWatcherPeriod
 }
