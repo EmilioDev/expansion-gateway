@@ -74,3 +74,26 @@ packet types:
       where:
         - packet type: the type of packet(challenge in this case) [required]
         - challenge: the challenge the client has to solve in order to prove identity [required]
+
+    connect:
+      a bbbbbbbbbbb...
+      | |
+      p s
+      a i
+      c g
+      k n
+      e a
+      t t
+        u
+      t r
+      y e
+      p
+      e
+
+      where:
+        - packet type: the type of packet(connect in this case) [required]
+        - signature: the signature the client sent in response to the challenge [required]
+
+- In the case of a redirect, also remember the redirected packet, which is the packet the client 
+will use to connect to the new server, and the redirected_ok packet, which is the packet the server 
+will use to provide the data to the client in the case of a valid redirect.
