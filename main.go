@@ -6,4 +6,8 @@ import (
 
 func main() {
 	fmt.Println("game gateway starting...")
+
+	gateway := GetGateway()
+
+	gateway.Start()
 }
