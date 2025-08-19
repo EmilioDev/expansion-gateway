@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"crypto/ed25519"
 	"expansion-gateway/config"
 	"expansion-gateway/dto"
 	"expansion-gateway/enums"
@@ -164,30 +165,82 @@ func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinf
 
 	switch packet.GetPacketType() {
 	case enums.HELLO:
-		helloPacket, ok := packet.(*dto.HelloPacket)
-
-		if ok {
+		if helloPacket, ok := packet.(*dto.HelloPacket); ok {
 			return layer.handleHelloPacket(helloPacket)
 		}
-		// handle later a not hello packet, but that should not occur
-		// if the architecture is respected
+
+		return layererrors.CreateProtocolFlowViolation_LayerError(
+			filePath,
+			171,
+			enums.LAYER_2,
+			enums.INCORRECT_PACKET_KIND)
 
 	case enums.CHALLENGE: // clients should never send a challenge
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			141,
+			178,
 			enums.LAYER_2,
 			enums.CLIENT_SENT_CHALLENGE)
 
 	case enums.NONE: //the layer 1 received an invalid packet
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			148,
+			185,
 			enums.LAYER_2,
 			enums.INVALID_PACKET)
+
+	case enums.CONNECT:
+		if connectPacket, ok := packet.(*dto.ConnectPacket); ok {
+			return layer.handleConnectPacket(connectPacket)
+		}
+
+		return layererrors.CreateProtocolFlowViolation_LayerError(
+			filePath,
+			196,
+			enums.LAYER_2,
+			enums.INCORRECT_PACKET_KIND)
 	}
 
 	return nil
+}
+
+// layer 1 connect packet handler
+func (layer *BasicLayer2) handleConnectPacket(packet *dto.ConnectPacket) errorinfo.GatewayError {
+	sessionId := packet.GetSender()
+	const filePath string = "/controllers/basic_layer_2.go"
+
+	if session, sessionExists := layer.sessions.GetExists(sessionId); sessionExists {
+		session.RefreshActivity()
+
+		if state := session.GetState(); state == enums.CHALLENGE_SENT || state == enums.RECEIVED_CONNECT {
+			publicKey := session.GetEd25519PublicKey()
+			challenge := session.GetChallenge()
+
+			if ok := ed25519.Verify(publicKey, challenge, packet.Signature[:]); ok {
+				layer.authorizeSession(sessionId) // handled here
+			} else {
+				// this client is unauthorized!!!
+				layer.closeSession(sessionId, enums.CloseReasonFailedAuthentication) // handled
+			}
+
+			return nil
+		}
+
+		// i think, instead of doing this, we should give the connect an extra functionality:
+		// if the user wants its datas again, it could just send a connect
+		return layererrors.CreateProtocolFlowViolation_LayerError(
+			filePath,
+			231,
+			enums.LAYER_2,
+			enums.CLIENT_SENT_CONNECT_AT_WRONG_MOMENT)
+
+	}
+
+	return layererrors.CreateProtocolFlowViolation_LayerError(
+		filePath,
+		239,
+		enums.LAYER_2,
+		enums.SESSION_CLOSED)
 }
 
 // layer 1 hello packet handler
@@ -322,6 +375,13 @@ func (layer *BasicLayer2) sessionTimeoutWatcher() {
 			}
 		}
 	}
+}
+
+// ==== handling authentication ====
+
+// handles a client that has just finished proving its identity successfully
+func (layer *BasicLayer2) authorizeSession(sessionId int64) {
+	//
 }
 
 // ==== constructor ====

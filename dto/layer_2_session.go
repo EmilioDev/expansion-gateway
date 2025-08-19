@@ -19,8 +19,9 @@ type Layer2Session struct {
 	sessionResume      atomic.Bool
 
 	// protected by their own mutex
-	challengeMu sync.RWMutex
-	challenge   []byte
+	challengeMu      sync.RWMutex
+	challenge        []byte
+	ed25519PublicKey *[]byte
 
 	subsMu        sync.RWMutex
 	subscriptions map[string]struct{}
@@ -30,6 +31,9 @@ type Layer2Session struct {
 
 	// timeout tracker
 	timeoutTracker *TimeoutTracker
+
+	// configuration object
+	configuration *config.Configuration
 }
 
 // GenerateNewLayer2Session creates a new Layer2Session with default values
@@ -41,6 +45,7 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		subsMu:           sync.RWMutex{},
 		bulkUpdaterMutex: sync.Mutex{},
 		timeoutTracker:   NewTimeoutTracker(config.GetSessionTimeout()),
+		configuration:    config,
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))
@@ -165,6 +170,17 @@ func (s *Layer2Session) GetClientType() enums.ClientType {
 
 func (s *Layer2Session) SetClientType(t enums.ClientType) {
 	s.clientType.Store(int32(t))
+
+	s.challengeMu.Lock()
+	defer s.challengeMu.Unlock()
+
+	switch t {
+	case enums.CLI_TOOL: // for the cli tool
+		s.ed25519PublicKey = s.configuration.GetCliEd25519PublicKey()
+
+	default: // the godot client
+		s.ed25519PublicKey = s.configuration.GetGodotEd25519PublicKey()
+	}
 }
 
 // ===== Client Version =====
@@ -241,4 +257,8 @@ func (session *Layer2Session) UpdateFromHelloPacket(packet *HelloPacket) {
 	} else {
 		session.requestedSessionId.Store(0)
 	}
+}
+
+func (session *Layer2Session) GetEd25519PublicKey() []byte {
+	return *session.ed25519PublicKey
 }

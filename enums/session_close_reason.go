@@ -11,4 +11,5 @@ const (
 	CloseReasonInvalidPacket
 	CloseReasonProtocolViolation
 	CloseReasonInternalError
+	CloseReasonFailedAuthentication
 )
