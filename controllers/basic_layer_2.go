@@ -381,7 +381,12 @@ func (layer *BasicLayer2) sessionTimeoutWatcher() {
 
 // handles a client that has just finished proving its identity successfully
 func (layer *BasicLayer2) authorizeSession(sessionId int64) {
-	//
+	if sessionToApprove, sessionExist := layer.sessions.GetExists(sessionId); sessionExist {
+		sessionToApprove.SetState(enums.RECEIVED_CONNECT)
+
+		// pending to complete, work first in the clustering system,
+		// and then come back here
+	}
 }
 
 // ==== constructor ====
