@@ -33,3 +33,6 @@ go.work.sum
 
 # compiled
 expansion-gateway*
+
+# grpc compilation
+clustering/grpc/

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+option go_package = "expansion-gateway/clustering/grpc";
+
+package expansion_gateway;
+
+service ExpansionGatewayClusterLeader {
+    rpc Subscribe(FollowerSubscriptionData) returns (SubscriptionResult);
+    rpc Unsubscribe(FollowerUnsubscriptionData) returns (ServerOperationResult); 
+    rpc HealthCheck(HealthCheckData) returns (ServerOperationResult);
+}
+
+message FollowerSubscriptionData {
+    string grpcServicePath = 1;
+    string kcpServerPath = 2;
+}
+
+message FollowerUnsubscriptionData {
+    int64 serverID = 1;
+}
+
+message SubscriptionResult {
+    int32 errorCode = 1; // contains the error code, if no error, then value is zero
+
+    // these field will have value if errorCode == 0
+    optional SubscriptionResultBody subscriptionBody = 2;
+}
+
+message SubscriptionResultBody {
+    int64 serverID = 1; // the id of the server
+    int64 healthyTimeout = 2; // max timeout between checks before considering this gateway as unhealthy
+}
+
+message HealthCheckData {
+    int64 serverId = 1;
+    int32 activeSessions = 2;
+    int64 messagesSinceLastCheck = 3;
+    int64 epoch = 4; // increased when user connects/disconnect
+    bool healthy = 5;
+}
+
+message ServerOperationResult {
+    bool success = 1;
+}

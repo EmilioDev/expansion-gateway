@@ -21,6 +21,9 @@ type Configuration struct {
 	sessionWatcherPeriod  time.Duration // the watcher period, the time between each check to see if there is an idle session (milliseconds)
 	godotEd25519PublicKey []byte        // the public key used in the Ed25519 authentication for godot
 	cliEd25519PublicKey   []byte        // the public key used in the Ed25519 authentication for the cli tool
+	grpcLeaderPath        string        // path to the leader of the cluster, if this field is empty, this node is a leader in the cluster
+	grpcCurrentPath       string        // path to access to this node
+	kcpPath               string        // the kcp path that should be used when redirecting to this node
 }
 
 // Initialices this module
@@ -39,6 +42,9 @@ func (conf *Configuration) Initialize() {
 	conf.sessionWatcherPeriod = 1 * time.Second // default: check every 1s
 	conf.godotEd25519PublicKey = defaultEd25519PublicKey[:]
 	conf.cliEd25519PublicKey = defaultEd25519PublicKey[:]
+	conf.grpcLeaderPath = ""
+	conf.grpcCurrentPath = "127.0.0.1:4500"
+	conf.kcpPath = "127.0.0.1:7000"
 
 	// port
 	stringPort := os.Getenv("PORT")
@@ -103,6 +109,21 @@ func (conf *Configuration) Initialize() {
 	if s := os.Getenv("GODOT_AUTH_KEY"); s != "" {
 		conf.godotEd25519PublicKey = parseKey(s, defaultEd25519PublicKey)
 	}
+
+	// grpc cluster leader path
+	if s := os.Getenv("CLUSTER_LEADER_GRPC"); s != "" {
+		conf.grpcLeaderPath = s
+	}
+
+	// path to the current grpc server
+	if s := os.Getenv("GRPC_SERVER_PATH"); s != "" {
+		conf.grpcCurrentPath = s
+	}
+
+	// path that should be used when redirecting to this node in kcp
+	if s := os.Getenv("NODE_KCP_PATH"); s != "" {
+		conf.kcpPath = s
+	}
 }
 
 // returns the server address to be used in this server
@@ -140,6 +161,18 @@ func (conf *Configuration) GetCliEd25519PublicKey() *[]byte {
 
 func (conf *Configuration) GetGodotEd25519PublicKey() *[]byte {
 	return &conf.godotEd25519PublicKey
+}
+
+func (conf *Configuration) AreWeClusterLeaders() bool {
+	return conf.grpcLeaderPath == ""
+}
+
+func (conf *Configuration) GetGrpcClusterLeaderPath() string {
+	return conf.grpcLeaderPath
+}
+
+func (conf *Configuration) GetGrpcCurrentServerPath() string {
+	return conf.grpcCurrentPath
 }
 
 // ==== extras and local helpers ====

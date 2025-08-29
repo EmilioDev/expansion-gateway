@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option go_package = "expansion-gateway/clustering/grpc";
+
+package expansion_gateway;
+
+service ExpansionGatewayClusterFollower {
+    rpc CheckIfFollowerIsOnline(Empty) returns (FollowerOperationResult);
+    rpc RequestHandleClient(SubscriptionRequestData) returns (SubscriptionRequestResult);
+}
+
+message FollowerOperationResult {
+    bool success = 1;
+}
+
+message SubscriptionRequestData {
+    int64 userID = 1;
+    int32 clientType = 2;
+    int32 clientVersion = 3;
+    int32 encryption = 4;
+    bool sessionResume = 5;
+    repeated int32 encryptionKey = 6;
+    int64 reqestedSessionID = 7;
+    int32 protocolVersion = 8;
+}
+
+message SubscriptionRequestResult {
+    int32 errorCode = 1; // if zero, everything ok
+    optional SubscriptionRequestResultBody body = 2;
+}
+
+message SubscriptionRequestResultBody {
+    repeated int32 challenge = 1;
+}
+
+message Empty {}
