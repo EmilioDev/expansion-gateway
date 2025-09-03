@@ -6,7 +6,12 @@ package expansion_gateway;
 
 service ExpansionGatewayClusterFollower {
     rpc CheckIfFollowerIsOnline(Empty) returns (FollowerOperationResult);
-    rpc RequestHandleClient(SubscriptionRequestData) returns (SubscriptionRequestResult);
+    rpc RequestAcceptClient(SubscriptionRequestData) returns (RedirectionRequestResult);
+    rpc HasSession(FollowerSessionID) returns (FollowerOperationResult);
+}
+
+message FollowerSessionID {
+    int64 sessionID = 1;
 }
 
 message FollowerOperationResult {
@@ -19,18 +24,18 @@ message SubscriptionRequestData {
     int32 clientVersion = 3;
     int32 encryption = 4;
     bool sessionResume = 5;
-    repeated int32 encryptionKey = 6;
-    int64 reqestedSessionID = 7;
-    int32 protocolVersion = 8;
+    int64 reqestedSessionID = 6;
+    int32 protocolVersion = 7;
 }
 
-message SubscriptionRequestResult {
+message RedirectionRequestResult {
     int32 errorCode = 1; // if zero, everything ok
     optional SubscriptionRequestResultBody body = 2;
 }
 
 message SubscriptionRequestResultBody {
-    repeated int32 challenge = 1;
+    int64 subscriptionID = 1;
+    repeated int32 challenge = 2;
 }
 
 message Empty {}

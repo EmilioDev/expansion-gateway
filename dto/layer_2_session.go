@@ -2,6 +2,7 @@
 package dto
 
 import (
+	"expansion-gateway/clustering/grpc"
 	"expansion-gateway/config"
 	"expansion-gateway/enums"
 	"sync"
@@ -26,7 +27,7 @@ type Layer2Session struct {
 	subscriptions map[string]struct{}
 
 	// for the bulk updaters
-	bulkUpdaterMutex sync.Mutex
+	bulkUpdaterMutex sync.RWMutex
 
 	// timeout tracker
 	timeoutTracker *TimeoutTracker
@@ -45,7 +46,7 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		subscriptions:    make(map[string]struct{}),
 		challengeMu:      sync.RWMutex{},
 		subsMu:           sync.RWMutex{},
-		bulkUpdaterMutex: sync.Mutex{},
+		bulkUpdaterMutex: sync.RWMutex{},
 		timeoutTracker:   NewTimeoutTracker(config.GetSessionTimeout()),
 		configuration:    config,
 	}
@@ -265,4 +266,45 @@ func (session *Layer2Session) GetEd25519PublicKey() []byte {
 
 func (s *Layer2Session) GetConfiguration() *config.Configuration {
 	return s.configuration
+}
+
+func (s *Layer2Session) GetFrame() *SessionFrame {
+	s.bulkUpdaterMutex.RLock()
+	defer s.bulkUpdaterMutex.RUnlock()
+
+	return &SessionFrame{
+		State:              s.GetState(),
+		RequestedSessionId: s.GetRequestedSessionId(),
+		ProtocolVersion:    s.GetProtocolVersion(),
+		ClientType:         s.GetClientType(),
+		ClientVersion:      s.GetClientVersion(),
+		Encryption:         s.GetEncryption(),
+		SessionResume:      s.GetSessionResume(),
+		EncryptionKey:      s.encryptionKey,
+		Challenge:          s.challenge,
+	}
+}
+
+type SessionFrame struct {
+	State              enums.ConnectionState
+	RequestedSessionId int64
+	ProtocolVersion    enums.ProtocolVersion
+	ClientType         enums.ClientType
+	ClientVersion      byte
+	Encryption         enums.EncryptionAlgorithm
+	SessionResume      bool
+	EncryptionKey      []byte
+	Challenge          []byte
+}
+
+func (frame *SessionFrame) ToSubscriptionRequestData(userId int64) *grpc.SubscriptionRequestData {
+	return &grpc.SubscriptionRequestData{
+		UserID:            userId,
+		ClientType:        int32(frame.ClientType),
+		ClientVersion:     int32(frame.ClientVersion),
+		Encryption:        int32(frame.Encryption),
+		SessionResume:     frame.SessionResume,
+		ReqestedSessionID: frame.RequestedSessionId,
+		ProtocolVersion:   int32(frame.ProtocolVersion),
+	}
 }
