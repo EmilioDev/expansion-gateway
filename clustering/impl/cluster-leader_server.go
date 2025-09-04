@@ -4,18 +4,36 @@ package impl
 import (
 	"context"
 	"expansion-gateway/clustering/grpc"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type ClusterLeader_Server struct {
-	grpc.UnimplementedExpansionGatewayClusterLeaderServer
+	grpc.UnimplementedExpansionGatewayClusterLeaderServer // grpc layer
+
+	// callbacks
+
+	subscribeCallback ClusterLeaderSubscribeCallback // subscribe callback
 }
 
 func (server *ClusterLeader_Server) Subscribe(context context.Context,
 	data *grpc.FollowerSubscriptionData) (*grpc.SubscriptionResult, error) {
-	return &grpc.SubscriptionResult{
-		ErrorCode:        1,
-		SubscriptionBody: nil,
-	}, nil
+	if data != nil {
+		if res, err := server.subscribeCallback(data.GrpcServicePath); err == nil {
+			return &grpc.SubscriptionResult{
+				ErrorCode: 0,
+				SubscriptionBody: &grpc.SubscriptionResultBody{
+					ServerID:       res.ServerID,
+					HealthyTimeout: res.HealthyTimeout,
+				},
+			}, nil
+		} else {
+			return nil, status.Errorf(codes.Internal, "error: %s, code: %d", err.Error(), err.GetErrorCode())
+		}
+	}
+
+	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for subscription")
 }
 
 func (server *ClusterLeader_Server) Unsubscribe(context context.Context, data *grpc.FollowerUnsubscriptionData) (*grpc.ServerOperationResult, error) {

@@ -12,7 +12,6 @@ service ExpansionGatewayClusterLeader {
 
 message FollowerSubscriptionData {
     string grpcServicePath = 1;
-    string kcpServerPath = 2;
 }
 
 message FollowerUnsubscriptionData {

@@ -74,7 +74,7 @@ func (client *ClusterLeader_Client) isReady() errorinfo.GatewayError {
 	return nil
 }
 
-func (client *ClusterLeader_Client) Subscribe(grpcCurrentNodePath, kcpCurrentNodePath string) (*dto.ClusterMemberSubscriptionResult, errorinfo.GatewayError) {
+func (client *ClusterLeader_Client) Subscribe(grpcCurrentNodePath string) (*dto.ClusterMemberSubscriptionResult, errorinfo.GatewayError) {
 	if err := client.isReady(); err != nil {
 		return nil, err
 	}
@@ -85,7 +85,6 @@ func (client *ClusterLeader_Client) Subscribe(grpcCurrentNodePath, kcpCurrentNod
 
 	if res, err := client.client.Subscribe(ctx, &grpc.FollowerSubscriptionData{
 		GrpcServicePath: grpcCurrentNodePath,
-		KcpServerPath:   kcpCurrentNodePath,
 	}); err == nil {
 		if res.SubscriptionBody != nil {
 			return &dto.ClusterMemberSubscriptionResult{
