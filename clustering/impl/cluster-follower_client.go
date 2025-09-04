@@ -1,3 +1,4 @@
+// file: /clustering/impl/cluster-follower_client.go
 package impl
 
 import (
@@ -40,7 +41,7 @@ func (c *ClusterFollower_Client) Connect(source string) errorinfo.GatewayError {
 
 	return helpers.WithStackTrace(clustererrors.CreateConnectionToServerFailedError(
 		"/clustering/impl/cluster-leader_client.go",
-		30,
+		41,
 		source,
 		enums.ClusterLeader,
 		false), 0)
@@ -63,11 +64,11 @@ func (c *ClusterFollower_Client) isReady() errorinfo.GatewayError {
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
 
 	if c.client == nil {
-		return clustererrors.CreateClientNotReadyError(filePath, 55, enums.ClusterLeader)
+		return clustererrors.CreateClientNotReadyError(filePath, 65, enums.ClusterLeader)
 	}
 
 	if c.connection == nil {
-		return clustererrors.CreateClientNotReadyError(filePath, 59, enums.ClusterLeader)
+		return clustererrors.CreateClientNotReadyError(filePath, 69, enums.ClusterLeader)
 	}
 
 	return nil
@@ -87,7 +88,7 @@ func (c *ClusterFollower_Client) CheckIfFollowerIsOnline() (bool, errorinfo.Gate
 	}
 
 	return false, clustererrors.CreateOperationFailedError(filePath,
-		87,
+		89,
 		enums.ClusterFollower,
 		false)
 }
@@ -104,7 +105,7 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 	if res, err := c.client.RequestAcceptClient(ctx, userFrame.ToSubscriptionRequestData(userID)); err == nil {
 		if res.Body == nil {
 			return nil, clustererrors.CreateNoPayloadError(filePath,
-				104,
+				105,
 				enums.ClusterFollower,
 				false)
 		}
@@ -132,7 +133,7 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 	}
 
 	return nil, clustererrors.CreateOperationFailedError(filePath,
-		133,
+		134,
 		enums.ClusterFollower,
 		false)
 }
