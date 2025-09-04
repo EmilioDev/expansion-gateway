@@ -6,3 +6,4 @@ import (
 )
 
 type ClusterLeaderSubscribeCallback func(string) (*dto.ClusterMemberSubscriptionResult, errorinfo.GatewayError)
+type ClusterLeaderUnsubscribeCallback func(int64) (bool, errorinfo.GatewayError)

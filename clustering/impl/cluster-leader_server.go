@@ -14,7 +14,8 @@ type ClusterLeader_Server struct {
 
 	// callbacks
 
-	subscribeCallback ClusterLeaderSubscribeCallback // subscribe callback
+	subscribeCallback   ClusterLeaderSubscribeCallback   // subscribe callback
+	unsubscribeCallback ClusterLeaderUnsubscribeCallback //unsubscribe callback
 }
 
 func (server *ClusterLeader_Server) Subscribe(context context.Context,
@@ -37,9 +38,17 @@ func (server *ClusterLeader_Server) Subscribe(context context.Context,
 }
 
 func (server *ClusterLeader_Server) Unsubscribe(context context.Context, data *grpc.FollowerUnsubscriptionData) (*grpc.ServerOperationResult, error) {
-	return &grpc.ServerOperationResult{
-		Success: false,
-	}, nil
+	if data != nil {
+		if res, err := server.unsubscribeCallback(data.ServerID); err == nil {
+			return &grpc.ServerOperationResult{
+				Success: res,
+			}, nil
+		} else {
+			return nil, status.Errorf(codes.Internal, "error: %s, code: %d", err.Error(), err.GetErrorCode())
+		}
+	}
+
+	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for the unsubscription")
 }
 
 func (server *ClusterLeader_Server) HealthCheck(context context.Context, data *grpc.HealthCheckData) (*grpc.ServerOperationResult, error) {
