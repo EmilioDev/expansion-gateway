@@ -19,6 +19,20 @@ type ClusterLeader_Server struct {
 	healthCheckCallback ClusterLeaderHealthCheckCallback // health check callback
 }
 
+// creates a new server for a cluster leader
+func GenerateClusterLeaderServer(
+	subscribeCallback ClusterLeaderSubscribeCallback,
+	unsubscribeCallback ClusterLeaderUnsubscribeCallback,
+	healthCheckCallback ClusterLeaderHealthCheckCallback) *ClusterLeader_Server {
+	return &ClusterLeader_Server{
+		grpc.UnimplementedExpansionGatewayClusterLeaderServer{},
+		subscribeCallback,
+		unsubscribeCallback,
+		healthCheckCallback,
+	}
+}
+
+// subscribes to this server
 func (server *ClusterLeader_Server) Subscribe(context context.Context,
 	data *grpc.FollowerSubscriptionData) (*grpc.SubscriptionResult, error) {
 	if data != nil {
@@ -38,6 +52,7 @@ func (server *ClusterLeader_Server) Subscribe(context context.Context,
 	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for subscription")
 }
 
+// removes a subscription to this server
 func (server *ClusterLeader_Server) Unsubscribe(context context.Context, data *grpc.FollowerUnsubscriptionData) (*grpc.ServerOperationResult, error) {
 	if data != nil {
 		if res, err := server.unsubscribeCallback(data.ServerID); err == nil {
@@ -52,6 +67,7 @@ func (server *ClusterLeader_Server) Unsubscribe(context context.Context, data *g
 	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for the unsubscription")
 }
 
+// sends a health check to this server
 func (server *ClusterLeader_Server) HealthCheck(context context.Context, data *grpc.HealthCheckData) (*grpc.ServerOperationResult, error) {
 	if data != nil {
 		if res, err := server.healthCheckCallback(
