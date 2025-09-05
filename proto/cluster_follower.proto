@@ -29,7 +29,7 @@ message SubscriptionRequestData {
 }
 
 message RedirectionRequestResult {
-    int32 errorCode = 1; // if zero, everything ok
+    bool success = 1; // if true, everything ok
     optional SubscriptionRequestResultBody body = 2;
 }
 

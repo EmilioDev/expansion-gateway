@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"expansion-gateway/dto"
+	dto "expansion-gateway/dto/clusters"
 	"expansion-gateway/interfaces/errorinfo"
 )
 

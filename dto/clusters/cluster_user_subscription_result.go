@@ -1,4 +1,4 @@
-package dto
+package clusters
 
 type ClusterUserSubscriptionResult struct {
 	Challenge      []byte // the challenge to be sent to the client

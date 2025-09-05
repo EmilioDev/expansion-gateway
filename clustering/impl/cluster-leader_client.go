@@ -3,7 +3,7 @@ package impl
 
 import (
 	"context"
-	"expansion-gateway/dto"
+	dto "expansion-gateway/dto/clusters"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/clustererrors"
 	"expansion-gateway/helpers"

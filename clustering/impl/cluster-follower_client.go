@@ -5,6 +5,7 @@ import (
 	"context"
 	"expansion-gateway/clustering/grpc"
 	"expansion-gateway/dto"
+	"expansion-gateway/dto/clusters"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/clustererrors"
 	"expansion-gateway/helpers"
@@ -93,7 +94,7 @@ func (c *ClusterFollower_Client) CheckIfFollowerIsOnline() (bool, errorinfo.Gate
 		false)
 }
 
-func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dto.SessionFrame) (*dto.ClusterUserSubscriptionResult, errorinfo.GatewayError) {
+func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dto.SessionFrame) (*clusters.ClusterUserSubscriptionResult, errorinfo.GatewayError) {
 	if err := c.isReady(); err != nil {
 		return nil, err
 	}
@@ -110,7 +111,7 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 				false)
 		}
 
-		response := dto.ClusterUserSubscriptionResult{
+		response := clusters.ClusterUserSubscriptionResult{
 			Challenge:      []byte{},
 			SubscriptionID: res.Body.SubscriptionID,
 		}

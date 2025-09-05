@@ -1,4 +1,4 @@
-package dto
+package clusters
 
 type ClusterMemberSubscriptionResult struct {
 	ServerID       int64 // the id of this server in the cluster
