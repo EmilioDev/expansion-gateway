@@ -18,6 +18,15 @@ type ClusterFollower_Server struct {
 	hasThisSessionCallback GatewayHasThisSessionRegisteredCallback // function to call if you want to check if a session is registered
 }
 
+// constructor of the follower servers
+func CreateClusterFollowerServer(acceptClientCallback RequestAcceptClientCallback, hasThisSessionCallback GatewayHasThisSessionRegisteredCallback) *ClusterFollower_Server {
+	return &ClusterFollower_Server{
+		grpc.UnimplementedExpansionGatewayClusterFollowerServer{},
+		acceptClientCallback,
+		hasThisSessionCallback,
+	}
+}
+
 // checks if this follower is online
 func (server *ClusterFollower_Server) CheckIfFollowerIsOnline(context context.Context, empty *grpc.Empty) (*grpc.FollowerOperationResult, error) {
 	return &grpc.FollowerOperationResult{
