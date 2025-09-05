@@ -14,7 +14,8 @@ type ClusterFollower_Server struct {
 
 	// ==== callbacks ====
 
-	acceptClientCallback RequestAcceptClientCallback
+	acceptClientCallback   RequestAcceptClientCallback             // function to call when registering a client
+	hasThisSessionCallback GatewayHasThisSessionRegisteredCallback // function to call if you want to check if a session is registered
 }
 
 // checks if this follower is online
@@ -24,6 +25,7 @@ func (server *ClusterFollower_Server) CheckIfFollowerIsOnline(context context.Co
 	}, nil
 }
 
+// function called when the leader requests this gateway to handle a client
 func (server *ClusterFollower_Server) RequestAcceptClient(context context.Context, data *grpc.SubscriptionRequestData) (*grpc.RedirectionRequestResult, error) {
 	if data != nil {
 		if res, err := server.acceptClientCallback(
@@ -48,4 +50,19 @@ func (server *ClusterFollower_Server) RequestAcceptClient(context context.Contex
 	}
 
 	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for requesting to accept an user")
+}
+
+// function called when the leader wants to know if this follower is handling a session or not
+func (server *ClusterFollower_Server) HasSession(context context.Context, data *grpc.FollowerSessionID) (*grpc.FollowerOperationResult, error) {
+	if data != nil {
+		if res, err := server.hasThisSessionCallback(data.SessionID); err == nil {
+			return &grpc.FollowerOperationResult{
+				Success: res,
+			}, nil
+		} else {
+			return nil, status.Errorf(codes.Internal, "error: %s, code: %d", err.Error(), err.GetErrorCode())
+		}
+	}
+
+	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for checking if a session is registered in this gateway")
 }
