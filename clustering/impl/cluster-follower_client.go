@@ -5,7 +5,7 @@ import (
 	"context"
 	"expansion-gateway/clustering/grpc"
 	"expansion-gateway/dto"
-	"expansion-gateway/dto/clusters"
+	clusters "expansion-gateway/dto/clusters/results"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/clustererrors"
 	"expansion-gateway/helpers"

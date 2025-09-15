@@ -5,6 +5,7 @@ import (
 	"context"
 	"expansion-gateway/clustering/grpc"
 
+	rpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -33,10 +34,10 @@ func GenerateClusterLeaderServer(
 }
 
 // subscribes to this server
-func (server *ClusterLeader_Server) Subscribe(context context.Context,
+func (sv *ClusterLeader_Server) Subscribe(context context.Context,
 	data *grpc.FollowerSubscriptionData) (*grpc.SubscriptionResult, error) {
 	if data != nil {
-		if res, err := server.subscribeCallback(data.GrpcServicePath); err == nil {
+		if res, err := sv.subscribeCallback(data.GrpcServicePath); err == nil {
 			return &grpc.SubscriptionResult{
 				ErrorCode: 0,
 				SubscriptionBody: &grpc.SubscriptionResultBody{
@@ -53,9 +54,9 @@ func (server *ClusterLeader_Server) Subscribe(context context.Context,
 }
 
 // removes a subscription to this server
-func (server *ClusterLeader_Server) Unsubscribe(context context.Context, data *grpc.FollowerUnsubscriptionData) (*grpc.ServerOperationResult, error) {
+func (sv *ClusterLeader_Server) Unsubscribe(context context.Context, data *grpc.FollowerUnsubscriptionData) (*grpc.ServerOperationResult, error) {
 	if data != nil {
-		if res, err := server.unsubscribeCallback(data.ServerID); err == nil {
+		if res, err := sv.unsubscribeCallback(data.ServerID); err == nil {
 			return &grpc.ServerOperationResult{
 				Success: res,
 			}, nil
@@ -68,9 +69,9 @@ func (server *ClusterLeader_Server) Unsubscribe(context context.Context, data *g
 }
 
 // sends a health check to this server
-func (server *ClusterLeader_Server) HealthCheck(context context.Context, data *grpc.HealthCheckData) (*grpc.ServerOperationResult, error) {
+func (sv *ClusterLeader_Server) HealthCheck(context context.Context, data *grpc.HealthCheckData) (*grpc.ServerOperationResult, error) {
 	if data != nil {
-		if res, err := server.healthCheckCallback(
+		if res, err := sv.healthCheckCallback(
 			data.ServerId,
 			data.MessagesSinceLastCheck,
 			data.Epoch,
@@ -86,4 +87,8 @@ func (server *ClusterLeader_Server) HealthCheck(context context.Context, data *g
 	}
 
 	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for the health check")
+}
+
+func (sv *ClusterLeader_Server) RegisterToGrpcServer(server *rpc.Server) {
+	grpc.RegisterExpansionGatewayClusterLeaderServer(server, sv)
 }

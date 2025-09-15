@@ -2,6 +2,9 @@
 package structs
 
 import (
+	"crypto/rand"
+	"encoding/binary"
+	"math"
 	"sync"
 )
 
@@ -10,11 +13,47 @@ type SessionsDictionary[T any] struct {
 	sessions      map[int64]T
 }
 
-// adds an element to the collection
+// adds an element to the collection in the specified index
 func (store *SessionsDictionary[T]) Store(data T, index int64) {
 	store.sessionsMutex.Lock()
 	store.sessions[index] = data
 	store.sessionsMutex.Unlock()
+}
+
+// stores a value and returns the index where it was stored
+func (store *SessionsDictionary[T]) Add(data T) int64 {
+	store.sessionsMutex.Lock()
+	defer store.sessionsMutex.Unlock()
+
+	var buf [8]byte
+	var index int64 = 0
+
+	for {
+		if _, err := rand.Read(buf[:]); err == nil {
+			raw := binary.LittleEndian.Uint64(buf[:])
+			index = int64(raw)
+
+			if _, exists := store.sessions[index]; !exists {
+				break
+			}
+		} else {
+			var x int64 = math.MinInt64
+			var limit int64 = math.MaxInt64
+
+			for ; x <= limit; x++ {
+				if _, exists := store.sessions[x]; !exists {
+					index = x
+					break
+				}
+			}
+
+			break
+		}
+	}
+
+	store.sessions[index] = data
+
+	return index
 }
 
 // checks if an index has elements in the collection or not

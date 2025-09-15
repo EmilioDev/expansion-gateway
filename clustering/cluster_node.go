@@ -1,13 +1,93 @@
 package clustering
 
-import "expansion-gateway/config"
+import (
+	"expansion-gateway/config"
+	"expansion-gateway/interfaces/errorinfo"
+	"fmt"
+	"log"
+	"net"
+	"sync"
+	"sync/atomic"
+
+	"google.golang.org/grpc"
+)
 
 type ClusterNode struct {
-	grpcCurrentServerPath string
+	grpcCurrentServerPath   string       // server path
+	temporalMessagesCounter atomic.Int64 // the temporal messages counter
+	server                  *grpc.Server // the grpc server
+	MessagesCounter         int64        // final messages counter
+	grpcPort                uint16       // the port the server will use
+	isWorking               *atomic.Bool // wether is this component working or not
+	startOnce               *sync.Once   // starts the service only once
+	stopOnce                *sync.Once   // stops the service only once
+	sessionsTimeout         int64        // the timespan in seconds used to check the client sessions, or the timeout this session has before being declared unhealthy
 }
 
+// creates a base cluster node
 func CreateBaseClusterNode(conf *config.Configuration) ClusterNode {
 	return ClusterNode{
-		grpcCurrentServerPath: conf.GetGrpcCurrentServerPath(),
+		grpcCurrentServerPath:   conf.GetGrpcCurrentServerPath(),
+		grpcPort:                conf.GetClusterGrpcPort(),
+		temporalMessagesCounter: atomic.Int64{},
+		isWorking:               &atomic.Bool{},
+		startOnce:               &sync.Once{},
+		stopOnce:                &sync.Once{},
+		server:                  grpc.NewServer(),
+		MessagesCounter:         0,
+		sessionsTimeout:         120,
+	}
+}
+
+// increases the temporal messages counter by one
+func (cluster *ClusterNode) NewMessage() {
+	cluster.temporalMessagesCounter.Add(1)
+}
+
+// copies the current value of the temporal messages counter to the final one and then resets it
+func (cluster *ClusterNode) ResetMessageCounter() {
+	cluster.MessagesCounter = cluster.temporalMessagesCounter.Load()
+	cluster.temporalMessagesCounter.Store(0)
+}
+
+// starts the grpc server of this cluster member
+func (cluster *ClusterNode) Start() errorinfo.GatewayError {
+	cluster.startOnce.Do(func() {
+		go cluster.runServer()
+	})
+
+	return nil
+}
+
+// stops the grpc server of this cluster member
+func (cluster *ClusterNode) Stop() errorinfo.GatewayError {
+	if !cluster.isWorking.Load() {
+		return nil
+	}
+
+	var result errorinfo.GatewayError = nil
+
+	cluster.stopOnce.Do(func() {
+		//
+	})
+
+	return result
+}
+
+// ==== privates ====
+
+// runs the server
+func (cluster *ClusterNode) runServer() {
+	address, err := net.Listen("tcp", fmt.Sprintf(":%d", cluster.grpcPort))
+
+	if err != nil {
+		log.Fatalf("failed to create path for cluster leader grpc server. port: %d, error: %v", cluster.grpcPort, err)
+	}
+
+	cluster.isWorking.Store(true) // yep, it's running, let's hope
+
+	if err := cluster.server.Serve(address); err != nil {
+		cluster.isWorking.Store(false) // this line is not needed, the next one will close the app, but...
+		log.Fatalf("failed to start cluster leader grpc server. port: %d, error: %v", cluster.grpcPort, err)
 	}
 }

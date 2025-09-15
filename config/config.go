@@ -3,6 +3,7 @@ package config
 import (
 	"expansion-gateway/helpers"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ type Configuration struct {
 	grpcLeaderPath        string        // path to the leader of the cluster, if this field is empty, this node is a leader in the cluster
 	grpcCurrentPath       string        // path to access to this node
 	kcpPath               string        // the kcp path that should be used when redirecting to this node
+	grpcClusterPort       uint16        // the port this cluster member is using to receive request from other members
 }
 
 // Initialices this module
@@ -45,6 +47,7 @@ func (conf *Configuration) Initialize() {
 	conf.grpcLeaderPath = ""
 	conf.grpcCurrentPath = "127.0.0.1:4500"
 	conf.kcpPath = "127.0.0.1:7000"
+	conf.grpcClusterPort = 40000 // yes, warhammer 40k!!!!
 
 	// port
 	stringPort := os.Getenv("PORT")
@@ -52,6 +55,13 @@ func (conf *Configuration) Initialize() {
 	if candidateToPort, err := strconv.Atoi(stringPort); err == nil {
 		if candidateToPort > 1024 {
 			conf.port = helpers.ConvertIntToUint16(candidateToPort)
+		}
+	}
+
+	// cluster grpc port
+	if val := os.Getenv("GRPC_CLUSTER_PORT"); val != "" {
+		if num, err := strconv.Atoi(val); err == nil && num > 1024 && num < math.MaxUint16 {
+			conf.grpcClusterPort = uint16(num)
 		}
 	}
 
@@ -173,6 +183,10 @@ func (conf *Configuration) GetGrpcClusterLeaderPath() string {
 
 func (conf *Configuration) GetGrpcCurrentServerPath() string {
 	return conf.grpcCurrentPath
+}
+
+func (conf *Configuration) GetClusterGrpcPort() uint16 {
+	return conf.grpcClusterPort
 }
 
 // ==== extras and local helpers ====

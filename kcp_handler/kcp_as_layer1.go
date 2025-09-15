@@ -28,8 +28,8 @@ type KcpAsLayer1 struct {
 	configuration    *config.Configuration                        // this is the configuration module. it contains all the config details
 	parser           parsers.ByteStreamToPacketParser             // the byte array to packet parser
 	working          *atomic.Bool                                 // tells you if this layer is working or not
-	shutdownOnce     *sync.Once
-	wg               *sync.WaitGroup
+	shutdownOnce     *sync.Once                                   // executes the shutdown only once
+	wg               *sync.WaitGroup                              // the wait group of layer 1
 }
 
 func CreateNewKcpLayer1(configuration *config.Configuration,
@@ -156,17 +156,7 @@ func (layer *KcpAsLayer1) listenFromInputChannel() {
 func (layer *KcpAsLayer1) process() {
 	for layer.IsWorking() {
 		if session, err := layer.listener.AcceptKCP(); err == nil {
-			connectionId := helpers.GenerateRandomInt64()
-
-			for {
-				if exists := layer.sessions.Exists(connectionId); !exists {
-					break
-				}
-
-				connectionId = helpers.GenerateRandomInt64()
-			}
-
-			layer.sessions.Store(session, connectionId)
+			connectionId := layer.sessions.Add(session)
 
 			layer.wg.Add(1)
 			go layer.handleSession(connectionId)

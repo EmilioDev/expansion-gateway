@@ -1,4 +1,4 @@
-package clusters
+package results
 
 type ClusterMemberSubscriptionResult struct {
 	ServerID       int64 // the id of this server in the cluster
