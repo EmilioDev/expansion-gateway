@@ -8,20 +8,24 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/grpc"
 )
 
 type ClusterNode struct {
-	grpcCurrentServerPath   string       // server path
-	temporalMessagesCounter atomic.Int64 // the temporal messages counter
-	server                  *grpc.Server // the grpc server
-	MessagesCounter         int64        // final messages counter
-	grpcPort                uint16       // the port the server will use
-	isWorking               *atomic.Bool // wether is this component working or not
-	startOnce               *sync.Once   // starts the service only once
-	stopOnce                *sync.Once   // stops the service only once
-	sessionsTimeout         int64        // the timespan in seconds used to check the client sessions, or the timeout this session has before being declared unhealthy
+	grpcCurrentServerPath   string        // server path
+	temporalMessagesCounter atomic.Int64  // the temporal messages counter
+	server                  *grpc.Server  // the grpc server
+	MessagesCounter         int64         // final messages counter
+	grpcPort                uint16        // the port the server will use
+	isWorking               *atomic.Bool  // wether is this component working or not
+	startOnce               *sync.Once    // starts the service only once
+	stopOnce                *sync.Once    // stops the service only once
+	sessionsTimeout         int64         // the timespan in seconds used to check the client sessions, or the timeout this session has before being declared unhealthy
+	epoch                   *atomic.Int64 // the current epoch of the server
+	startTime               time.Time     // the time this server was started
+	timeMutex               sync.RWMutex  // the mutex used in the timing operations
 }
 
 // creates a base cluster node
@@ -36,6 +40,9 @@ func CreateBaseClusterNode(conf *config.Configuration) ClusterNode {
 		server:                  grpc.NewServer(),
 		MessagesCounter:         0,
 		sessionsTimeout:         120,
+		epoch:                   &atomic.Int64{},
+		startTime:               time.Now(),
+		timeMutex:               sync.RWMutex{},
 	}
 }
 
@@ -72,6 +79,33 @@ func (cluster *ClusterNode) Stop() errorinfo.GatewayError {
 	})
 
 	return result
+}
+
+// gets the current epoch of the server
+func (cluster *ClusterNode) GetEpoch() int64 {
+	return cluster.epoch.Load()
+}
+
+// moves the server to the next epoch
+func (cluster *ClusterNode) NextEpoch() {
+	cluster.epoch.Add(1)
+}
+
+// returns the nanoseconds elapsed since the server started
+func (cluster *ClusterNode) GetElapsedTime() int64 {
+	cluster.timeMutex.RLock()
+	defer cluster.timeMutex.RUnlock()
+
+	return time.Since(cluster.startTime).Nanoseconds()
+}
+
+// changes the start time of the server
+func (cluster *ClusterNode) SetStartTime(time *time.Time) {
+	if time != nil {
+		cluster.timeMutex.Lock()
+		cluster.startTime = *time
+		cluster.timeMutex.Unlock()
+	}
 }
 
 // ==== privates ====

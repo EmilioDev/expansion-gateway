@@ -3,39 +3,63 @@ package clusters
 
 import (
 	"expansion-gateway/clustering/impl"
-	"sync/atomic"
+	"sync"
 )
 
 type ClusterFollowerContainer struct {
-	healthy                atomic.Bool                  // if the gateway is healthy
-	messagesSinceLastCheck atomic.Int64                 // messages received since last check
-	activeSessions         atomic.Int32                 // number of active sessions
-	epoch                  atomic.Int64                 // the current epoch of the gateway
+	lock                   sync.RWMutex                 // the mutex for the multiple updates
+	healthy                bool                         // if the gateway is healthy
+	messagesSinceLastCheck int64                        // messages received since last check
+	activeSessions         int32                        // number of active sessions
+	epoch                  int64                        // the current epoch of the gateway
 	Client                 *impl.ClusterFollower_Client // the client used to interact remotelly with this cluster member
 }
 
 func GetNewClusterFollowerContainer() *ClusterFollowerContainer {
 	return &ClusterFollowerContainer{
-		healthy:                atomic.Bool{},
-		messagesSinceLastCheck: atomic.Int64{},
-		activeSessions:         atomic.Int32{},
-		epoch:                  atomic.Int64{},
+		healthy:                true,
+		messagesSinceLastCheck: 0,
+		activeSessions:         0,
+		epoch:                  0,
 		Client:                 impl.CreateClusterFollowerClient(),
+		lock:                   sync.RWMutex{},
 	}
 }
 
 func (member *ClusterFollowerContainer) IsHealthy() bool {
-	return member.healthy.Load()
+	member.lock.RLock()
+	defer member.lock.RUnlock()
+
+	return member.healthy
 }
 
 func (member *ClusterFollowerContainer) MessagesSinceLastCheck() int64 {
-	return member.messagesSinceLastCheck.Load()
+	member.lock.RLock()
+	defer member.lock.RUnlock()
+
+	return member.messagesSinceLastCheck
 }
 
 func (member *ClusterFollowerContainer) ActiveSessions() int32 {
-	return member.activeSessions.Load()
+	member.lock.RLock()
+	defer member.lock.RUnlock()
+
+	return member.activeSessions
 }
 
 func (member *ClusterFollowerContainer) Epoch() int64 {
-	return member.epoch.Load()
+	member.lock.RLock()
+	defer member.lock.RUnlock()
+
+	return member.epoch
+}
+
+func (member *ClusterFollowerContainer) UpdateStatus(messagesSinceLastCheck, epoch int64, activeSessions int32, healthy bool) {
+	member.lock.Lock()
+	defer member.lock.Unlock()
+
+	member.messagesSinceLastCheck = messagesSinceLastCheck
+	member.epoch = epoch
+	member.activeSessions = activeSessions
+	member.healthy = healthy
 }

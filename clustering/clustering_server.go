@@ -41,7 +41,12 @@ func (cluster *ClusteringServer) unsubscribe(clientId int64) (bool, errorinfo.Ga
 }
 
 func (cluster *ClusteringServer) healthCheck(serverID, messagesSinceLastCheck, epoch int64, activeSessions int32, healthy bool) (bool, errorinfo.GatewayError) {
-	return true, nil
+	if member, exists := cluster.clients.GetExists(serverID); exists {
+		member.UpdateStatus(messagesSinceLastCheck, epoch, activeSessions, healthy)
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func CreateClusteringServer(waiter *sync.WaitGroup, config *config.Configuration) *ClusteringServer {
