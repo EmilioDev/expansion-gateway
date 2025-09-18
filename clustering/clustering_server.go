@@ -36,6 +36,7 @@ func (cluster *ClusteringServer) subscribe(path string) (*res.ClusterMemberSubsc
 }
 
 func (cluster *ClusteringServer) unsubscribe(clientId int64) (bool, errorinfo.GatewayError) {
+	cluster.clients.Delete(clientId)
 	return true, nil
 }
 
