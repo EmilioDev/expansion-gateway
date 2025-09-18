@@ -4,6 +4,6 @@ type ClusteringClient struct {
 	ClusterNode
 }
 
-func (cluster ClusteringClient) IsServer() bool {
+func (cluster *ClusteringClient) IsServer() bool {
 	return true
 }
