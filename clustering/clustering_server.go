@@ -13,7 +13,6 @@ import (
 type ClusteringServer struct {
 	ClusterNode                                                                 // base
 	clients     *structs.SessionsDictionary[*clusters.ClusterFollowerContainer] // clients
-	globalWg    *sync.WaitGroup                                                 // global wait group, to inform when it is closed
 }
 
 func (cluster *ClusteringServer) IsServer() bool {
@@ -52,9 +51,8 @@ func (cluster *ClusteringServer) healthCheck(serverID, messagesSinceLastCheck, e
 func CreateClusteringServer(waiter *sync.WaitGroup, config *config.Configuration) *ClusteringServer {
 	result := ClusteringServer{}
 
-	result.ClusterNode = CreateBaseClusterNode(config)
+	result.ClusterNode = CreateBaseClusterNode(config, waiter)
 	result.clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()
-	result.globalWg = waiter
 
 	implementation := impl.GenerateClusterLeaderServer(result.subscribe, result.unsubscribe, result.healthCheck)
 	implementation.RegisterToGrpcServer(result.server)

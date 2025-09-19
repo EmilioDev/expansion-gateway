@@ -14,22 +14,23 @@ import (
 )
 
 type ClusterNode struct {
-	grpcCurrentServerPath   string        // server path
-	temporalMessagesCounter atomic.Int64  // the temporal messages counter
-	server                  *grpc.Server  // the grpc server
-	MessagesCounter         int64         // final messages counter
-	grpcPort                uint16        // the port the server will use
-	isWorking               *atomic.Bool  // wether is this component working or not
-	startOnce               *sync.Once    // starts the service only once
-	stopOnce                *sync.Once    // stops the service only once
-	sessionsTimeout         int64         // the timespan in seconds used to check the client sessions, or the timeout this session has before being declared unhealthy
-	epoch                   *atomic.Int64 // the current epoch of the server
-	startTime               time.Time     // the time this server was started
-	timeMutex               sync.RWMutex  // the mutex used in the timing operations
+	grpcCurrentServerPath   string          // server path
+	temporalMessagesCounter atomic.Int64    // the temporal messages counter
+	server                  *grpc.Server    // the grpc server
+	MessagesCounter         int64           // final messages counter
+	grpcPort                uint16          // the port the server will use
+	isWorking               *atomic.Bool    // wether is this component working or not
+	startOnce               *sync.Once      // starts the service only once
+	stopOnce                *sync.Once      // stops the service only once
+	sessionsTimeout         int64           // the timespan in seconds used to check the client sessions, or the timeout this session has before being declared unhealthy
+	epoch                   *atomic.Int64   // the current epoch of the server
+	startTime               time.Time       // the time this server was started
+	timeMutex               sync.RWMutex    // the mutex used in the timing operations
+	wg                      *sync.WaitGroup // the wait group used to indicate when this server has finished it's task
 }
 
 // creates a base cluster node
-func CreateBaseClusterNode(conf *config.Configuration) ClusterNode {
+func CreateBaseClusterNode(conf *config.Configuration, wg *sync.WaitGroup) ClusterNode {
 	return ClusterNode{
 		grpcCurrentServerPath:   conf.GetGrpcCurrentServerPath(),
 		grpcPort:                conf.GetClusterGrpcPort(),
@@ -43,6 +44,7 @@ func CreateBaseClusterNode(conf *config.Configuration) ClusterNode {
 		epoch:                   &atomic.Int64{},
 		startTime:               time.Now(),
 		timeMutex:               sync.RWMutex{},
+		wg:                      wg,
 	}
 }
 
@@ -61,6 +63,7 @@ func (cluster *ClusterNode) ResetMessageCounter() {
 func (cluster *ClusterNode) Start() errorinfo.GatewayError {
 	cluster.startOnce.Do(func() {
 		go cluster.runServer()
+		cluster.wg.Add(1)
 	})
 
 	return nil
@@ -72,13 +75,12 @@ func (cluster *ClusterNode) Stop() errorinfo.GatewayError {
 		return nil
 	}
 
-	var result errorinfo.GatewayError = nil
-
 	cluster.stopOnce.Do(func() {
-		//
+		cluster.server.GracefulStop()
+		cluster.wg.Done()
 	})
 
-	return result
+	return nil
 }
 
 // gets the current epoch of the server
