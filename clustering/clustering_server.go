@@ -27,6 +27,7 @@ func (cluster *ClusteringServer) subscribe(path string) (*res.ClusterMemberSubsc
 	}
 
 	index := cluster.clients.Add(candidate)
+	cluster.NextEpoch()
 
 	return &res.ClusterMemberSubscriptionResult{
 		ServerID:       index,
@@ -36,6 +37,8 @@ func (cluster *ClusteringServer) subscribe(path string) (*res.ClusterMemberSubsc
 
 func (cluster *ClusteringServer) unsubscribe(clientId int64) (bool, errorinfo.GatewayError) {
 	cluster.clients.Delete(clientId)
+	cluster.NextEpoch()
+
 	return true, nil
 }
 
