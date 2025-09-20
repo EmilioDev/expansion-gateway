@@ -1,3 +1,4 @@
+// file: /clustering/cluster_server.go
 package clustering
 
 import (
@@ -8,6 +9,7 @@ import (
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/internal/structs"
 	"sync"
+	"time"
 )
 
 type ClusteringServer struct {
@@ -51,10 +53,40 @@ func (cluster *ClusteringServer) healthCheck(serverID, messagesSinceLastCheck, e
 	return false, nil
 }
 
+func (cluster *ClusteringServer) checkClients() {
+	cluster.wg.Add(1)
+	defer cluster.wg.Done()
+
+	timeout := cluster.sessionsTimeout
+
+	period := time.Duration(timeout) * time.Second
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
+
+	var keys []int64
+
+	for range ticker.C {
+		if !cluster.isWorking.Load() {
+			return
+		}
+
+		keys = cluster.clients.Keys()
+
+		for _, key := range keys {
+			if client, exists := cluster.clients.GetExists(key); exists {
+				if client.IsHealthy() && client.SecondsSinceLastUpdate() > timeout {
+					client.SetHealthStatus(false)
+				}
+			}
+		}
+	}
+}
+
+// creates a new cluster server
 func CreateClusteringServer(waiter *sync.WaitGroup, config *config.Configuration) *ClusteringServer {
 	result := ClusteringServer{}
 
-	result.ClusterNode = CreateBaseClusterNode(config, waiter)
+	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.checkClients)
 	result.clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()
 
 	implementation := impl.GenerateClusterLeaderServer(result.subscribe, result.unsubscribe, result.healthCheck)

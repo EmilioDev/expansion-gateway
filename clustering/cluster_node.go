@@ -27,10 +27,11 @@ type ClusterNode struct {
 	startTime               time.Time       // the time this server was started
 	timeMutex               sync.RWMutex    // the mutex used in the timing operations
 	wg                      *sync.WaitGroup // the wait group used to indicate when this server has finished it's task
+	initCallback            func()          // the function that should be called on the start method, after everything is running
 }
 
 // creates a base cluster node
-func CreateBaseClusterNode(conf *config.Configuration, wg *sync.WaitGroup) ClusterNode {
+func CreateBaseClusterNode(conf *config.Configuration, wg *sync.WaitGroup, initCallback func()) ClusterNode {
 	return ClusterNode{
 		grpcCurrentServerPath:   conf.GetGrpcCurrentServerPath(),
 		grpcPort:                conf.GetClusterGrpcPort(),
@@ -45,6 +46,7 @@ func CreateBaseClusterNode(conf *config.Configuration, wg *sync.WaitGroup) Clust
 		startTime:               time.Now(),
 		timeMutex:               sync.RWMutex{},
 		wg:                      wg,
+		initCallback:            initCallback,
 	}
 }
 
@@ -77,6 +79,7 @@ func (cluster *ClusterNode) Stop() errorinfo.GatewayError {
 
 	cluster.stopOnce.Do(func() {
 		cluster.server.GracefulStop()
+		cluster.isWorking.Store(false)
 		cluster.wg.Done()
 	})
 
@@ -121,6 +124,10 @@ func (cluster *ClusterNode) runServer() {
 	}
 
 	cluster.isWorking.Store(true) // yep, it's running, let's hope
+
+	if cluster.initCallback != nil {
+		go cluster.initCallback()
+	}
 
 	if err := cluster.server.Serve(address); err != nil {
 		cluster.isWorking.Store(false) // this line is not needed, the next one will close the app, but...

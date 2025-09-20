@@ -3,7 +3,9 @@ package clusters
 
 import (
 	"expansion-gateway/clustering/impl"
+	"math"
 	"sync"
+	"time"
 )
 
 type ClusterFollowerContainer struct {
@@ -13,6 +15,7 @@ type ClusterFollowerContainer struct {
 	activeSessions         int32                        // number of active sessions
 	epoch                  int64                        // the current epoch of the gateway
 	Client                 *impl.ClusterFollower_Client // the client used to interact remotelly with this cluster member
+	lastUpdate             time.Time                    // the moment when the last update was done
 }
 
 func GetNewClusterFollowerContainer() *ClusterFollowerContainer {
@@ -23,6 +26,7 @@ func GetNewClusterFollowerContainer() *ClusterFollowerContainer {
 		epoch:                  0,
 		Client:                 impl.CreateClusterFollowerClient(),
 		lock:                   sync.RWMutex{},
+		lastUpdate:             time.Now(),
 	}
 }
 
@@ -31,6 +35,13 @@ func (member *ClusterFollowerContainer) IsHealthy() bool {
 	defer member.lock.RUnlock()
 
 	return member.healthy
+}
+
+func (member *ClusterFollowerContainer) SetHealthStatus(status bool) {
+	member.lock.Lock()
+	defer member.lock.Unlock()
+
+	member.healthy = status
 }
 
 func (member *ClusterFollowerContainer) MessagesSinceLastCheck() int64 {
@@ -62,4 +73,9 @@ func (member *ClusterFollowerContainer) UpdateStatus(messagesSinceLastCheck, epo
 	member.epoch = epoch
 	member.activeSessions = activeSessions
 	member.healthy = healthy
+	member.lastUpdate = time.Now()
+}
+
+func (member *ClusterFollowerContainer) SecondsSinceLastUpdate() int64 {
+	return int64(math.Round(time.Since(member.lastUpdate).Seconds()))
 }

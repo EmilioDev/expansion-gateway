@@ -3,6 +3,7 @@ package controllers
 
 import (
 	"crypto/ed25519"
+	"expansion-gateway/clustering"
 	"expansion-gateway/config"
 	"expansion-gateway/dto"
 	"expansion-gateway/enums"
@@ -27,6 +28,7 @@ type BasicLayer2 struct {
 	layer1Reciver disp.Reciver
 	sessions      *structs.SessionsDictionary[*dto.Layer2Session]
 	wg            *sync.WaitGroup
+	clusterServer *clustering.ClusteringServer
 }
 
 func (layer BasicLayer2) ConfigureFirstLayer(target layers.Layer1) errorinfo.GatewayError {
@@ -80,6 +82,7 @@ func (layer BasicLayer2) Start() errorinfo.GatewayError {
 	// start session timeout manager
 	layer.wg.Add(1)
 	go layer.sessionTimeoutWatcher()
+	layer.clusterServer.Start()
 
 	return nil
 }
@@ -98,6 +101,8 @@ func (layer BasicLayer2) Stop() errorinfo.GatewayError {
 			return err
 		}
 	}
+
+	layer.clusterServer.Stop()
 
 	layer.wg.Wait()
 
@@ -162,6 +167,8 @@ func (layer *BasicLayer2) listenLayer1(shardIndex int) {
 // global packet handler from layer 1
 func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinfo.GatewayError {
 	const filePath string = "/controllers/basic_layer_2.go"
+
+	layer.clusterServer.NewMessage()
 
 	switch packet.GetPacketType() {
 	case enums.HELLO:
@@ -393,6 +400,7 @@ func (layer *BasicLayer2) authorizeSession(sessionId int64) {
 func CreateNewBasicLayer2(conf *config.Configuration) *BasicLayer2 {
 	var working atomic.Bool
 	working.Store(false)
+	wg := &sync.WaitGroup{}
 
 	return &BasicLayer2{
 		layer1:        nil,
@@ -400,6 +408,7 @@ func CreateNewBasicLayer2(conf *config.Configuration) *BasicLayer2 {
 		configuration: conf,
 		working:       &working,
 		sessions:      structs.CreateNewSessionDictionary[*dto.Layer2Session](),
-		wg:            &sync.WaitGroup{},
+		wg:            wg,
+		clusterServer: clustering.CreateClusteringServer(wg, conf),
 	}
 }
