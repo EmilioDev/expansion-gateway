@@ -77,5 +77,8 @@ func (member *ClusterFollowerContainer) UpdateStatus(messagesSinceLastCheck, epo
 }
 
 func (member *ClusterFollowerContainer) SecondsSinceLastUpdate() int64 {
+	member.lock.RLock()
+	defer member.lock.RUnlock()
+
 	return int64(math.Round(time.Since(member.lastUpdate).Seconds()))
 }
