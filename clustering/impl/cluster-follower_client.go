@@ -42,7 +42,7 @@ func (c *ClusterFollower_Client) Connect(source string) errorinfo.GatewayError {
 
 	return helpers.WithStackTrace(clustererrors.CreateConnectionToServerFailedError(
 		"/clustering/impl/cluster-leader_client.go",
-		41,
+		43,
 		source,
 		enums.ClusterLeader,
 		false), 0)
@@ -61,15 +61,30 @@ func (c *ClusterFollower_Client) Disconnect() errorinfo.GatewayError {
 	return nil
 }
 
+func (c *ClusterFollower_Client) DropClient() (bool, errorinfo.GatewayError) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	const filePath string = "/clustering/impl/cluster-leader_client.go"
+
+	if res, err := c.client.DropClient(ctx, &grpc.Empty{}); err != nil {
+		return false, clustererrors.CreateOperationFailedError(filePath,
+			69,
+			enums.ClusterFollower,
+			false)
+	} else {
+		return res.Success, nil
+	}
+}
+
 func (c *ClusterFollower_Client) isReady() errorinfo.GatewayError {
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
 
 	if c.client == nil {
-		return clustererrors.CreateClientNotReadyError(filePath, 65, enums.ClusterLeader)
+		return clustererrors.CreateClientNotReadyError(filePath, 83, enums.ClusterLeader)
 	}
 
 	if c.connection == nil {
-		return clustererrors.CreateClientNotReadyError(filePath, 69, enums.ClusterLeader)
+		return clustererrors.CreateClientNotReadyError(filePath, 87, enums.ClusterLeader)
 	}
 
 	return nil
@@ -89,7 +104,7 @@ func (c *ClusterFollower_Client) CheckIfFollowerIsOnline() (bool, errorinfo.Gate
 	}
 
 	return false, clustererrors.CreateOperationFailedError(filePath,
-		89,
+		106,
 		enums.ClusterFollower,
 		false)
 }
@@ -106,7 +121,7 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 	if res, err := c.client.RequestAcceptClient(ctx, userFrame.ToSubscriptionRequestData(userID)); err == nil {
 		if res.Body == nil {
 			return nil, clustererrors.CreateNoPayloadError(filePath,
-				105,
+				122,
 				enums.ClusterFollower,
 				false)
 		}
@@ -134,7 +149,7 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 	}
 
 	return nil, clustererrors.CreateOperationFailedError(filePath,
-		134,
+		151,
 		enums.ClusterFollower,
 		false)
 }
@@ -153,7 +168,7 @@ func (c *ClusterFollower_Client) HasThisSession(sessionID int64) (bool, errorinf
 	}
 
 	return false, clustererrors.CreateOperationFailedError(filePath,
-		153,
+		170,
 		enums.ClusterFollower,
 		false)
 }

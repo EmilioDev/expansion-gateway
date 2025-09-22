@@ -8,6 +8,7 @@ service ExpansionGatewayClusterFollower {
     rpc CheckIfFollowerIsOnline(Empty) returns (FollowerOperationResult);
     rpc RequestAcceptClient(SubscriptionRequestData) returns (RedirectionRequestResult);
     rpc HasSession(FollowerSessionID) returns (FollowerOperationResult);
+    rpc DropClient(Empty) returns (FollowerOperationResult);
 }
 
 message FollowerSessionID {

@@ -8,3 +8,4 @@ import (
 
 type RequestAcceptClientCallback func(int64, int64, int32, int32, int32, int32, bool) (*clusters.ClustersSubscriptionRequestBody, errorinfo.GatewayError)
 type GatewayHasThisSessionRegisteredCallback func(int64) (bool, errorinfo.GatewayError)
+type RequestExitCallback func() errorinfo.GatewayError

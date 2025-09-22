@@ -16,15 +16,32 @@ type ClusterFollower_Server struct {
 
 	acceptClientCallback   RequestAcceptClientCallback             // function to call when registering a client
 	hasThisSessionCallback GatewayHasThisSessionRegisteredCallback // function to call if you want to check if a session is registered
+	requestExitCallback    RequestExitCallback                     // function to be called when the cluster leader requests this member to go down
 }
 
 // constructor of the follower servers
-func CreateClusterFollowerServer(acceptClientCallback RequestAcceptClientCallback, hasThisSessionCallback GatewayHasThisSessionRegisteredCallback) *ClusterFollower_Server {
+func CreateClusterFollowerServer(acceptClientCallback RequestAcceptClientCallback,
+	hasThisSessionCallback GatewayHasThisSessionRegisteredCallback,
+	requestExitCallback RequestExitCallback) *ClusterFollower_Server {
+
 	return &ClusterFollower_Server{
 		grpc.UnimplementedExpansionGatewayClusterFollowerServer{},
 		acceptClientCallback,
 		hasThisSessionCallback,
+		requestExitCallback,
 	}
+}
+
+func (server *ClusterFollower_Server) DropClient(context context.Context, empty *grpc.Empty) (*grpc.FollowerOperationResult, error) {
+	if err := server.requestExitCallback(); err != nil {
+		return &grpc.FollowerOperationResult{
+			Success: false,
+		}, nil
+	}
+
+	return &grpc.FollowerOperationResult{
+		Success: true,
+	}, nil
 }
 
 // checks if this follower is online

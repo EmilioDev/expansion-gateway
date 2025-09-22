@@ -28,10 +28,15 @@ type ClusterNode struct {
 	timeMutex               sync.RWMutex    // the mutex used in the timing operations
 	wg                      *sync.WaitGroup // the wait group used to indicate when this server has finished it's task
 	initCallback            func()          // the function that should be called on the start method, after everything is running
+	stopCallback            func()          // the function to be called when the server is going to stop
 }
 
 // creates a base cluster node
-func CreateBaseClusterNode(conf *config.Configuration, wg *sync.WaitGroup, initCallback func()) ClusterNode {
+func CreateBaseClusterNode(
+	conf *config.Configuration,
+	wg *sync.WaitGroup,
+	initCallback func(),
+	stopCallback func()) ClusterNode {
 	return ClusterNode{
 		grpcCurrentServerPath:   conf.GetGrpcCurrentServerPath(),
 		grpcPort:                conf.GetClusterGrpcPort(),
@@ -47,6 +52,7 @@ func CreateBaseClusterNode(conf *config.Configuration, wg *sync.WaitGroup, initC
 		timeMutex:               sync.RWMutex{},
 		wg:                      wg,
 		initCallback:            initCallback,
+		stopCallback:            stopCallback,
 	}
 }
 
@@ -80,6 +86,11 @@ func (cluster *ClusterNode) Stop() errorinfo.GatewayError {
 	cluster.stopOnce.Do(func() {
 		cluster.server.GracefulStop()
 		cluster.isWorking.Store(false)
+
+		if cluster.stopCallback != nil {
+			cluster.stopCallback()
+		}
+
 		cluster.wg.Done()
 	})
 

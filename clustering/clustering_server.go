@@ -38,10 +38,15 @@ func (cluster *ClusteringServer) subscribe(path string) (*res.ClusterMemberSubsc
 }
 
 func (cluster *ClusteringServer) unsubscribe(clientId int64) (bool, errorinfo.GatewayError) {
-	cluster.clients.Delete(clientId)
-	cluster.NextEpoch()
+	if client, exists := cluster.clients.GetExists(clientId); exists {
+		client.Client.Disconnect()
+		cluster.clients.Delete(clientId)
+		cluster.NextEpoch()
 
-	return true, nil
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (cluster *ClusteringServer) healthCheck(serverID, messagesSinceLastCheck, epoch int64, activeSessions int32, healthy bool) (bool, errorinfo.GatewayError) {
@@ -82,11 +87,25 @@ func (cluster *ClusteringServer) checkClients() {
 	}
 }
 
+// closes all the clients and then removes them all from the list
+func (cluster *ClusteringServer) close() {
+	keys := cluster.clients.Keys()
+
+	for _, key := range keys {
+		if client, exists := cluster.clients.GetExists(key); exists {
+			client.Client.DropClient()
+			client.Client.Disconnect()
+		}
+	}
+
+	cluster.clients.Clear()
+}
+
 // creates a new cluster server
 func CreateClusteringServer(waiter *sync.WaitGroup, config *config.Configuration) *ClusteringServer {
 	result := ClusteringServer{}
 
-	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.checkClients)
+	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.checkClients, result.close)
 	result.clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()
 
 	implementation := impl.GenerateClusterLeaderServer(result.subscribe, result.unsubscribe, result.healthCheck)
