@@ -12,16 +12,16 @@ import (
 	"time"
 )
 
-type ClusteringServer struct {
+type ClusteringLeader struct {
 	ClusterNode                                                                 // base
 	clients     *structs.SessionsDictionary[*clusters.ClusterFollowerContainer] // clients
 }
 
-func (cluster *ClusteringServer) IsServer() bool {
+func (cluster *ClusteringLeader) IsServer() bool {
 	return true
 }
 
-func (cluster *ClusteringServer) subscribe(path string) (*res.ClusterMemberSubscriptionResult, errorinfo.GatewayError) {
+func (cluster *ClusteringLeader) subscribe(path string) (*res.ClusterMemberSubscriptionResult, errorinfo.GatewayError) {
 	candidate := clusters.GetNewClusterFollowerContainer()
 
 	if err := candidate.Client.Connect(path); err != nil {
@@ -37,7 +37,7 @@ func (cluster *ClusteringServer) subscribe(path string) (*res.ClusterMemberSubsc
 	}, nil
 }
 
-func (cluster *ClusteringServer) unsubscribe(clientId int64) (bool, errorinfo.GatewayError) {
+func (cluster *ClusteringLeader) unsubscribe(clientId int64) (bool, errorinfo.GatewayError) {
 	if client, exists := cluster.clients.GetExists(clientId); exists {
 		client.Client.Disconnect()
 		cluster.clients.Delete(clientId)
@@ -49,7 +49,7 @@ func (cluster *ClusteringServer) unsubscribe(clientId int64) (bool, errorinfo.Ga
 	return false, nil
 }
 
-func (cluster *ClusteringServer) healthCheck(serverID, messagesSinceLastCheck, epoch int64, activeSessions int32, healthy bool) (bool, errorinfo.GatewayError) {
+func (cluster *ClusteringLeader) healthCheck(serverID, messagesSinceLastCheck, epoch int64, activeSessions int32, healthy bool) (bool, errorinfo.GatewayError) {
 	if member, exists := cluster.clients.GetExists(serverID); exists {
 		member.UpdateStatus(messagesSinceLastCheck, epoch, activeSessions, healthy)
 		return true, nil
@@ -58,7 +58,7 @@ func (cluster *ClusteringServer) healthCheck(serverID, messagesSinceLastCheck, e
 	return false, nil
 }
 
-func (cluster *ClusteringServer) checkClients() {
+func (cluster *ClusteringLeader) checkClients() {
 	cluster.wg.Add(1)
 	defer cluster.wg.Done()
 
@@ -88,7 +88,7 @@ func (cluster *ClusteringServer) checkClients() {
 }
 
 // closes all the clients and then removes them all from the list
-func (cluster *ClusteringServer) close() {
+func (cluster *ClusteringLeader) close() {
 	keys := cluster.clients.Keys()
 
 	for _, key := range keys {
@@ -102,8 +102,8 @@ func (cluster *ClusteringServer) close() {
 }
 
 // creates a new cluster server
-func CreateClusteringServer(waiter *sync.WaitGroup, config *config.Configuration) *ClusteringServer {
-	result := ClusteringServer{}
+func CreateClusteringLeader(waiter *sync.WaitGroup, config *config.Configuration) *ClusteringLeader {
+	result := ClusteringLeader{}
 
 	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.checkClients, result.close)
 	result.clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()

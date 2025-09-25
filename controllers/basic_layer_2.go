@@ -28,7 +28,7 @@ type BasicLayer2 struct {
 	layer1Reciver disp.Reciver
 	sessions      *structs.SessionsDictionary[*dto.Layer2Session]
 	wg            *sync.WaitGroup
-	clusterServer *clustering.ClusteringServer
+	clusterServer *clustering.ClusteringLeader
 }
 
 func (layer BasicLayer2) ConfigureFirstLayer(target layers.Layer1) errorinfo.GatewayError {
@@ -409,6 +409,6 @@ func CreateNewBasicLayer2(conf *config.Configuration) *BasicLayer2 {
 		working:       &working,
 		sessions:      structs.CreateNewSessionDictionary[*dto.Layer2Session](),
 		wg:            wg,
-		clusterServer: clustering.CreateClusteringServer(wg, conf),
+		clusterServer: clustering.CreateClusteringLeader(wg, conf),
 	}
 }
