@@ -3,4 +3,5 @@ package layers
 
 type Layer2 interface {
 	SmartLayer
+	GetActiveSessions() int32
 }

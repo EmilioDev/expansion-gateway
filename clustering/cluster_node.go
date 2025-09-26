@@ -17,7 +17,7 @@ type ClusterNode struct {
 	grpcCurrentServerPath   string          // server path
 	temporalMessagesCounter atomic.Int64    // the temporal messages counter
 	server                  *grpc.Server    // the grpc server
-	MessagesCounter         int64           // final messages counter
+	MessagesCounter         *atomic.Int64   // final messages counter
 	grpcPort                uint16          // the port the server will use
 	isWorking               *atomic.Bool    // wether is this component working or not
 	startOnce               *sync.Once      // starts the service only once
@@ -45,7 +45,7 @@ func CreateBaseClusterNode(
 		startOnce:               &sync.Once{},
 		stopOnce:                &sync.Once{},
 		server:                  grpc.NewServer(),
-		MessagesCounter:         0,
+		MessagesCounter:         &atomic.Int64{},
 		sessionsTimeout:         120,
 		epoch:                   &atomic.Int64{},
 		startTime:               time.Now(),
@@ -63,7 +63,7 @@ func (cluster *ClusterNode) NewMessage() {
 
 // copies the current value of the temporal messages counter to the final one and then resets it
 func (cluster *ClusterNode) ResetMessageCounter() {
-	cluster.MessagesCounter = cluster.temporalMessagesCounter.Load()
+	cluster.MessagesCounter.Store(cluster.temporalMessagesCounter.Load())
 	cluster.temporalMessagesCounter.Store(0)
 }
 

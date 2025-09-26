@@ -1,4 +1,4 @@
-// file: /clustering/cluster_server.go
+// file: /clustering/cluster_leader.go
 package clustering
 
 import (
@@ -17,7 +17,7 @@ type ClusteringLeader struct {
 	clients     *structs.SessionsDictionary[*clusters.ClusterFollowerContainer] // clients
 }
 
-func (cluster *ClusteringLeader) IsServer() bool {
+func (cluster *ClusteringLeader) IsLeader() bool {
 	return true
 }
 

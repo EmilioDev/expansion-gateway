@@ -109,6 +109,10 @@ func (layer BasicLayer2) Stop() errorinfo.GatewayError {
 	return nil
 }
 
+func (layer BasicLayer2) GetActiveSessions() int32 {
+	return int32(layer.sessions.Len())
+}
+
 func (layer *BasicLayer2) initializeLayer1Listeners() {
 	shards := layer.layer1Reciver.ShardCount()
 

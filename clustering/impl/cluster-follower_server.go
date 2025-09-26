@@ -5,6 +5,8 @@ import (
 	"context"
 	"expansion-gateway/clustering/grpc"
 
+	rpc "google.golang.org/grpc"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -91,4 +93,8 @@ func (server *ClusterFollower_Server) HasSession(context context.Context, data *
 	}
 
 	return nil, status.Error(codes.InvalidArgument, "you need to specify a valid parameter for checking if a session is registered in this gateway")
+}
+
+func (sv *ClusterFollower_Server) RegisterToGrpcServer(server *rpc.Server) {
+	grpc.RegisterExpansionGatewayClusterFollowerServer(server, sv)
 }
