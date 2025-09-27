@@ -84,7 +84,7 @@ func (cluster *ClusteringFollower) initCallback() {
 }
 
 func (cluster *ClusteringFollower) closeClientCallback() {
-	//
+	cluster.thisGateway.Stop()
 }
 
 // ==== server callbacks ====
