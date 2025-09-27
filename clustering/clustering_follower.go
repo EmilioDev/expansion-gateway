@@ -84,7 +84,8 @@ func (cluster *ClusteringFollower) initCallback() {
 }
 
 func (cluster *ClusteringFollower) closeClientCallback() {
-	cluster.thisGateway.Stop()
+	cluster.leader.Unsubscribe(cluster.memberID)
+	cluster.leader.Disconnect()
 }
 
 // ==== server callbacks ====
@@ -108,7 +109,11 @@ func CreateClusteringFollower(waiter *sync.WaitGroup, config *config.Configurati
 
 	result := ClusteringFollower{}
 
-	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.initCallback, result.closeClientCallback)
+	result.ClusterNode = CreateBaseClusterNode(
+		config, waiter,
+		result.initCallback,
+		result.closeClientCallback,
+	)
 
 	leader := impl.CreateClusterLeaderClient()
 	leaderSrc := config.GetGrpcClusterLeaderPath()
@@ -120,7 +125,11 @@ func CreateClusteringFollower(waiter *sync.WaitGroup, config *config.Configurati
 	result.leader = leader
 	result.thisGateway = gateway
 
-	implementation := impl.CreateClusterFollowerServer(result.acceptClientCallback, result.hasThisSessionCallback, result.requestExitCallback)
+	implementation := impl.CreateClusterFollowerServer(
+		result.acceptClientCallback,
+		result.hasThisSessionCallback,
+		result.requestExitCallback,
+	)
 	implementation.RegisterToGrpcServer(result.server)
 
 	return &result
