@@ -94,7 +94,7 @@ func (cluster *ClusteringFollower) acceptClientCallback(userID, requestedSession
 }
 
 func (cluster *ClusteringFollower) hasThisSessionCallback(sessionId int64) (bool, errorinfo.GatewayError) {
-	return false, nil
+	return cluster.thisGateway.HasSession(sessionId), nil
 }
 
 func (cluster *ClusteringFollower) requestExitCallback() errorinfo.GatewayError {
