@@ -5,6 +5,7 @@ import (
 	"expansion-gateway/clustering/impl"
 	"expansion-gateway/config"
 	"expansion-gateway/dto/clusters/results"
+	"expansion-gateway/enums"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
 	"log"
@@ -16,7 +17,7 @@ type ClusteringFollower struct {
 	ClusterNode                                         // base
 	leader                   *impl.ClusterLeader_Client // client used to interact with the cluster leader
 	memberID                 int64                      // the id of this member in the cluster
-	thisGateway              layers.Layer2              // the reference to the kcp gateway
+	thisGateway              layers.Layer2Follower      // the reference to the kcp gateway
 	failedConsecutiveschecks int                        // the number of consecutives health checks that had failed
 }
 
@@ -90,8 +91,23 @@ func (cluster *ClusteringFollower) closeClientCallback() {
 
 // ==== server callbacks ====
 
-func (cluster *ClusteringFollower) acceptClientCallback(userID, requestedSessionId int64, clientType, clientVersion, encryption, protocolVersion int32, sessionResume bool) (*results.ClustersSubscriptionRequestBody, errorinfo.GatewayError) {
-	return nil, nil
+func (cluster *ClusteringFollower) acceptClientCallback(
+	userID,
+	requestedSessionId int64,
+	clientType,
+	clientVersion,
+	encryption,
+	protocolVersion int32,
+	sessionResume bool,
+) (*results.ClustersSubscriptionRequestBody, errorinfo.GatewayError) {
+	return cluster.thisGateway.GenerateUserSubscription(
+		userID,
+		requestedSessionId,
+		enums.ClientType(clientType),
+		byte(clientVersion),
+		enums.EncryptionAlgorithm(encryption),
+		enums.ProtocolVersion(protocolVersion),
+		sessionResume)
 }
 
 func (cluster *ClusteringFollower) hasThisSessionCallback(sessionId int64) (bool, errorinfo.GatewayError) {
@@ -99,10 +115,15 @@ func (cluster *ClusteringFollower) hasThisSessionCallback(sessionId int64) (bool
 }
 
 func (cluster *ClusteringFollower) requestExitCallback() errorinfo.GatewayError {
-	return nil
+	return cluster.thisGateway.Stop() // here
 }
 
-func CreateClusteringFollower(waiter *sync.WaitGroup, config *config.Configuration, gateway layers.Layer2) *ClusteringFollower {
+// ==== constructor ====
+
+func CreateClusteringFollower(
+	waiter *sync.WaitGroup,
+	config *config.Configuration,
+	gateway layers.Layer2Follower) *ClusteringFollower {
 	if config.AreWeClusterLeaders() {
 		log.Fatalln("a follower cannot be configured to be a leader of the cluster")
 	}
