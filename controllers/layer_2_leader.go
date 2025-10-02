@@ -9,171 +9,27 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/helpers"
-	disp "expansion-gateway/interfaces/dispatchers"
 	"expansion-gateway/interfaces/errorinfo"
-	"expansion-gateway/interfaces/layers"
 	"expansion-gateway/interfaces/packets"
-	"expansion-gateway/internal/others"
-	"expansion-gateway/internal/structs"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
-type BasicLayer2 struct {
-	layer1        layers.Layer1
-	layer3        layers.Layer3
-	working       *atomic.Bool
-	configuration *config.Configuration
-	layer1Reciver disp.Reciver
-	sessions      *structs.SessionsDictionary[*dto.Layer2Session]
-	wg            *sync.WaitGroup
+type Layer2Leader struct {
+	*Layer2Core
 	clusterServer *clustering.ClusteringLeader
 }
 
-func (layer BasicLayer2) ConfigureFirstLayer(target layers.Layer1) errorinfo.GatewayError {
-	layer.layer1 = target
-
-	dispatcher, reciver := others.NewShardedDispatcher(layer.configuration)
-
-	layer.layer1Reciver = reciver
-
-	return layer.layer1.ConfigureDumbLayer(dispatcher)
+func (layer Layer2Leader) initializeCluster() errorinfo.GatewayError {
+	return layer.clusterServer.Start()
 }
 
-func (layer BasicLayer2) ConfigureThirdLayer(target layers.Layer3) errorinfo.GatewayError {
-	layer.layer3 = target
-	return nil
-}
-
-func (layer BasicLayer2) IsWorking() bool {
-	return layer.working.Load()
-}
-
-func (layer BasicLayer2) Start() errorinfo.GatewayError {
-	if layer.working.Load() {
-		return nil
-	}
-
-	if layer.layer1 == nil || layer.layer3 == nil {
-		return layererrors.CreateDumbLayersNotConfigured_LayerError(
-			"/controllers/basic_layer_2.go",
-			53,
-			enums.LAYER_2,
-			layer.layer1,
-			layer.layer3)
-	}
-
-	// Start Layer 1
-	if err := layer.layer1.Start(); err != nil {
-		return err
-	}
-
-	// Start Layer 3 (if applicable)
-	if err := layer.layer3.Start(); err != nil {
-		return err
-	}
-
-	layer.working.Store(true)
-
-	layer.initializeLayer1Listeners()
-	layer.initializeLayer3Listeners()
-
-	// start session timeout manager
-	layer.wg.Add(1)
-	go layer.sessionTimeoutWatcher()
-	layer.clusterServer.Start()
-
-	return nil
-}
-
-func (layer BasicLayer2) Stop() errorinfo.GatewayError {
-	layer.working.Store(false)
-
-	if layer.layer1 != nil {
-		if err := layer.layer1.Stop(); err != nil {
-			return err
-		}
-	}
-
-	if layer.layer3 != nil {
-		if err := layer.layer3.Stop(); err != nil {
-			return err
-		}
-	}
-
-	layer.clusterServer.Stop()
-
-	layer.wg.Wait()
-
-	return nil
-}
-
-func (layer BasicLayer2) GetActiveSessions() int32 {
-	return int32(layer.sessions.Len())
-}
-
-func (layer BasicLayer2) HasSession(sessionID int64) bool {
-	return layer.sessions.Exists(sessionID)
-}
-
-func (layer *BasicLayer2) initializeLayer1Listeners() {
-	shards := layer.layer1Reciver.ShardCount()
-
-	for x := 0; x < shards; x++ {
-		layer.wg.Add(1)
-		go layer.listenLayer1(x)
-	}
-}
-
-func (layer *BasicLayer2) initializeLayer3Listeners() {
-	// Reserved for later
-}
-
-// ==== packet listeners ====
-
-// layer 1 packet listener
-func (layer *BasicLayer2) listenLayer1(shardIndex int) {
-	channel := layer.layer1Reciver.GetShard(shardIndex)
-	defer layer.wg.Done()
-
-	for layer.IsWorking() {
-		select {
-		case packet, ok := <-channel:
-			if !ok {
-				return
-			}
-
-			if err := layer.handlePacketFromLayer1(packet); err != nil {
-				sessionToClose := packet.GetSender()
-
-				switch err.GetErrorCode() {
-				case 13: // protocol violation
-					layer.closeSession(sessionToClose, enums.CloseReasonProtocolViolation)
-
-				case 8, 9, 10, 11, 12:
-					layer.closeSession(sessionToClose, enums.CloseReasonInternalError)
-
-				case 0, 1, 2, 3, 4, 5, 6: // packet error
-					layer.closeSession(sessionToClose, enums.CloseReasonInvalidPacket)
-
-				case 7: // external error
-					fallthrough
-				default:
-					layer.closeSession(sessionToClose, enums.CloseReasonUnknown)
-				}
-			}
-
-		default:
-			time.Sleep(time.Millisecond * 10) // Yield CPU, prevent tight loop
-		}
-	}
+func (layer Layer2Leader) stopCluster() errorinfo.GatewayError {
+	return layer.clusterServer.Stop()
 }
 
 // ==== layer 1 packet handlers ====
 
 // global packet handler from layer 1
-func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinfo.GatewayError {
+func (layer *Layer2Leader) handlePacketFromLayer1(packet packets.Packet) errorinfo.GatewayError {
 	const filePath string = "/controllers/basic_layer_2.go"
 
 	layer.clusterServer.NewMessage()
@@ -220,7 +76,7 @@ func (layer *BasicLayer2) handlePacketFromLayer1(packet packets.Packet) errorinf
 }
 
 // layer 1 connect packet handler
-func (layer *BasicLayer2) handleConnectPacket(packet *dto.ConnectPacket) errorinfo.GatewayError {
+func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errorinfo.GatewayError {
 	sessionId := packet.GetSender()
 	const filePath string = "/controllers/basic_layer_2.go"
 
@@ -259,7 +115,7 @@ func (layer *BasicLayer2) handleConnectPacket(packet *dto.ConnectPacket) errorin
 }
 
 // layer 1 hello packet handler
-func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.GatewayError {
+func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.GatewayError {
 	clientId := packet.GetSender()
 	const filePath string = "/controllers/basic_layer_2.go"
 	var newChallenge []byte
@@ -339,63 +195,16 @@ func (layer *BasicLayer2) handleHelloPacket(packet *dto.HelloPacket) errorinfo.G
 	return nil
 }
 
-// ==== error handlers ====
+// ==== handler of packets from layer 3 ====
 
-// invalid packet handler
-func (layer *BasicLayer2) closeSession(sessionId int64, reason enums.SessionCloseReason) {
-	if layer.layer1 != nil {
-		// we need to send the disconnect packet first
-		// do not forget to add it!!!
-		layer.layer1.CloseSession(sessionId)
-	}
-
-	if layer.layer3 != nil {
-		// the same as in layer 1
-		layer.layer3.CloseSession(sessionId)
-	}
-
-	layer.sessions.Delete(sessionId)
-}
-
-// ==== timeout watcher ====
-
-func (layer *BasicLayer2) sessionTimeoutWatcher() {
-	defer layer.wg.Done()
-
-	checkPeriod := layer.configuration.GetSessionWatcherPeriod()
-
-	if checkPeriod <= 0 {
-		checkPeriod = time.Second
-	}
-
-	ticker := time.NewTicker(checkPeriod)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		if !layer.IsWorking() {
-			return
-		}
-
-		keys := layer.sessions.Keys()
-
-		for _, key := range keys {
-			if session, exists := layer.sessions.GetExists(key); exists {
-				if session.TimeoutTracker().Expired() {
-					if session.GetState() == enums.CHALLENGE_SENT {
-						layer.closeSession(key, enums.CloseReasonChallengeTimeout)
-					} else {
-						layer.closeSession(key, enums.CloseReasonIdleTimeout)
-					}
-				}
-			}
-		}
-	}
+func (layer *Layer2Leader) handlePacketFromLayer3(packet packets.Packet) errorinfo.GatewayError {
+	return nil
 }
 
 // ==== handling authentication ====
 
 // handles a client that has just finished proving its identity successfully
-func (layer *BasicLayer2) authorizeSession(sessionId int64) {
+func (layer *Layer2Leader) authorizeSession(sessionId int64) {
 	if sessionToApprove, sessionExist := layer.sessions.GetExists(sessionId); sessionExist {
 		sessionToApprove.SetState(enums.RECEIVED_CONNECT)
 
@@ -405,18 +214,18 @@ func (layer *BasicLayer2) authorizeSession(sessionId int64) {
 }
 
 // ==== constructor ====
-func CreateNewBasicLayer2(conf *config.Configuration) *BasicLayer2 {
-	var working atomic.Bool
-	working.Store(false)
-	wg := &sync.WaitGroup{}
+func CreateNewLayer2Leader(conf *config.Configuration) *Layer2Leader {
+	answer := Layer2Leader{}
+	core := CreateNewLayer2Core(
+		conf,
+		answer.handlePacketFromLayer1,
+		answer.handlePacketFromLayer3,
+		answer.initializeCluster,
+		answer.stopCluster,
+	)
 
-	return &BasicLayer2{
-		layer1:        nil,
-		layer3:        nil,
-		configuration: conf,
-		working:       &working,
-		sessions:      structs.CreateNewSessionDictionary[*dto.Layer2Session](),
-		wg:            wg,
-		clusterServer: clustering.CreateClusteringLeader(wg, conf),
-	}
+	answer.Layer2Core = core
+	answer.clusterServer = clustering.CreateClusteringLeader(core.wg, conf)
+
+	return &answer
 }

@@ -55,7 +55,7 @@ func (gateway *GatewayServer) getLayer1() layers.Layer1 {
 }
 
 func (gateway *GatewayServer) getLayer2() layers.Layer2 {
-	return controllers.CreateNewBasicLayer2(gateway.config)
+	return controllers.CreateNewLayer2Leader(gateway.config)
 }
 
 func (gateway *GatewayServer) getLayer3() layers.Layer3 {
