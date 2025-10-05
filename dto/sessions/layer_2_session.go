@@ -1,9 +1,10 @@
-// file: /dto/layer_2_session.go
-package dto
+// file: /dto/sessions/layer_2_session.go
+package sessions
 
 import (
 	"expansion-gateway/clustering/grpc"
 	"expansion-gateway/config"
+	"expansion-gateway/dto"
 	"expansion-gateway/enums"
 	"sync"
 	"sync/atomic"
@@ -217,7 +218,7 @@ func (s *Layer2Session) RefreshActivity() {
 }
 
 // ==== Bulk updaters ====
-func (session *Layer2Session) UpdateFromHelloPacket(packet *HelloPacket) {
+func (session *Layer2Session) UpdateFromHelloPacket(packet *dto.HelloPacket) {
 	// lock packet to avoid race conditions
 	session.bulkUpdaterMutex.Lock()
 	defer session.bulkUpdaterMutex.Unlock()

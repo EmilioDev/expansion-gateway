@@ -3,7 +3,7 @@ package controllers
 
 import (
 	"expansion-gateway/config"
-	"expansion-gateway/dto"
+	dto "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/layererrors"
 	disp "expansion-gateway/interfaces/dispatchers"

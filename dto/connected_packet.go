@@ -4,6 +4,7 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
+	"expansion-gateway/interfaces/sessions"
 )
 
 type ConnectedPacket struct {
@@ -17,7 +18,7 @@ type ConnectedPacket struct {
 	encryptionKey   []byte                    // the key used by the encryption algorithm
 }
 
-func CreateNewConnectPacket(sessionId int64, session *Layer2Session) *ConnectedPacket {
+func CreateNewConnectPacket(sessionId int64, session sessions.Session) *ConnectedPacket {
 	answer := ConnectedPacket{
 		sessionTimeout:  session.GetConfiguration().GetSessionTimeout().Milliseconds(),
 		sessionID:       sessionId,

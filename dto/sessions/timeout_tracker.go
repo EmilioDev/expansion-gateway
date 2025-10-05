@@ -1,5 +1,5 @@
 // file: /dto/timeout_tracker.go
-package dto
+package sessions
 
 import (
 	"sync"

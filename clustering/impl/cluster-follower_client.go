@@ -4,8 +4,8 @@ package impl
 import (
 	"context"
 	"expansion-gateway/clustering/grpc"
-	"expansion-gateway/dto"
 	clusters "expansion-gateway/dto/clusters/results"
+	dto "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/clustererrors"
 	"expansion-gateway/helpers"

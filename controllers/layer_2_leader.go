@@ -1,4 +1,4 @@
-// file: /controllers/basic_layer_2.go
+// file: /controllers/layer_2_leader.go
 package controllers
 
 import (
@@ -6,6 +6,7 @@ import (
 	"expansion-gateway/clustering"
 	"expansion-gateway/config"
 	"expansion-gateway/dto"
+	dtoSessions "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/helpers"
@@ -18,11 +19,11 @@ type Layer2Leader struct {
 	clusterServer *clustering.ClusteringLeader
 }
 
-func (layer Layer2Leader) initializeCluster() errorinfo.GatewayError {
+func (layer *Layer2Leader) initializeCluster() errorinfo.GatewayError {
 	return layer.clusterServer.Start()
 }
 
-func (layer Layer2Leader) stopCluster() errorinfo.GatewayError {
+func (layer *Layer2Leader) stopCluster() errorinfo.GatewayError {
 	return layer.clusterServer.Stop()
 }
 
@@ -78,7 +79,7 @@ func (layer *Layer2Leader) handlePacketFromLayer1(packet packets.Packet) errorin
 // layer 1 connect packet handler
 func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errorinfo.GatewayError {
 	sessionId := packet.GetSender()
-	const filePath string = "/controllers/basic_layer_2.go"
+	const filePath string = "/controllers/layer_2_leader.go"
 
 	if session, sessionExists := layer.sessions.GetExists(sessionId); sessionExists {
 		session.RefreshActivity()
@@ -117,7 +118,7 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 // layer 1 hello packet handler
 func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.GatewayError {
 	clientId := packet.GetSender()
-	const filePath string = "/controllers/basic_layer_2.go"
+	const filePath string = "/controllers/layer_2_leader.go"
 	var newChallenge []byte
 	var err errorinfo.GatewayError = nil
 
@@ -158,7 +159,7 @@ func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.
 
 	// the session does not exist
 	// then we generate a new one
-	newSession := dto.GenerateNewLayer2Session(layer.configuration)
+	newSession := dtoSessions.GenerateNewLayer2Session(layer.configuration)
 
 	// we update the session from the hello packet
 	newSession.UpdateFromHelloPacket(packet)
