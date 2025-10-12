@@ -13,3 +13,13 @@ func (r *PackerReciver) GetShard(index int) <-chan packets.Packet {
 func (r *PackerReciver) ShardCount() int {
 	return len(r.Shards)
 }
+
+func (r *PackerReciver) TotalPending() int {
+	cont := 0
+
+	for _, channel := range r.Shards {
+		cont += len(channel)
+	}
+
+	return cont
+}

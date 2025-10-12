@@ -149,6 +149,10 @@ func (layer KcpAsLayer1) CloseSession(sessionId int64) errorinfo.GatewayError {
 	return nil
 }
 
+func (layer KcpAsLayer1) MoveClientTo(origin, destiny int64) {
+	layer.sessions.MoveTo(origin, destiny)
+}
+
 func (layer *KcpAsLayer1) listenFromInputChannel() {
 	// for now, still pending...
 }

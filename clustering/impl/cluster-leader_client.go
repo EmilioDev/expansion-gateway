@@ -4,6 +4,7 @@ package impl
 import (
 	"context"
 	dto "expansion-gateway/dto/clusters/results"
+	"expansion-gateway/dto/processes"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/clustererrors"
 	"expansion-gateway/helpers"
@@ -121,6 +122,7 @@ func (client *ClusterLeader_Client) HealthCheck(serverId,
 	messagesSinceLastCheck,
 	epoch int64,
 	activeSessions int32,
+	processData *processes.ProcessData,
 	healthy bool) errorinfo.GatewayError {
 	if err := client.isReady(); err != nil {
 		return err
@@ -137,6 +139,8 @@ func (client *ClusterLeader_Client) HealthCheck(serverId,
 			MessagesSinceLastCheck: messagesSinceLastCheck,
 			Epoch:                  epoch,
 			Healthy:                healthy,
+			RamPercentUsage:        processData.RAMusage,
+			CpuPercentUsage:        float32(processData.CPUusage),
 		}); err == nil {
 		if res.Success {
 			return nil

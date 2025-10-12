@@ -1,5 +1,5 @@
 packet cycle:
-  client:   hello           connect
+  client:   hello           connect                             redirected/publish/subscribe/unsubscribe/disconnect
 
   server:         challenge         connected/redirect/disconnect
 

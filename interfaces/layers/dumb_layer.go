@@ -11,4 +11,5 @@ type DumbLayer interface {
 	// and the bussines logic layer to comunicate
 	ConfigureDumbLayer(outputChannel dispatchers.Dispatcher) errorinfo.GatewayError
 	CloseSession(sessionId int64) errorinfo.GatewayError
+	MoveClientTo(origin, destiny int64)
 }

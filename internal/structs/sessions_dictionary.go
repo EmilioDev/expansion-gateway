@@ -33,6 +33,10 @@ func (store *SessionsDictionary[T]) Add(data T) int64 {
 			raw := binary.LittleEndian.Uint64(buf[:])
 			index = int64(raw)
 
+			if index == 0 {
+				continue
+			}
+
 			if _, exists := store.sessions[index]; !exists {
 				break
 			}
@@ -41,6 +45,10 @@ func (store *SessionsDictionary[T]) Add(data T) int64 {
 			var limit int64 = math.MaxInt64
 
 			for ; x <= limit; x++ {
+				if x == 0 {
+					continue
+				}
+
 				if _, exists := store.sessions[x]; !exists {
 					index = x
 					break

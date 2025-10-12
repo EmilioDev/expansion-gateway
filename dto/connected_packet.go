@@ -18,7 +18,7 @@ type ConnectedPacket struct {
 	encryptionKey   []byte                    // the key used by the encryption algorithm
 }
 
-func CreateNewConnectPacket(sessionId int64, session sessions.Session) *ConnectedPacket {
+func CreateNewConnectedPacket(sessionId int64, session sessions.Session) *ConnectedPacket {
 	answer := ConnectedPacket{
 		sessionTimeout:  session.GetConfiguration().GetSessionTimeout().Milliseconds(),
 		sessionID:       sessionId,

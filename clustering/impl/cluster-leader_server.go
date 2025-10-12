@@ -76,6 +76,8 @@ func (sv *ClusterLeader_Server) HealthCheck(context context.Context, data *grpc.
 			data.MessagesSinceLastCheck,
 			data.Epoch,
 			data.ActiveSessions,
+			data.CpuPercentUsage,
+			data.RamPercentUsage,
 			data.Healthy,
 		); err == nil {
 			return &grpc.ServerOperationResult{

@@ -14,7 +14,7 @@ import (
 
 type ClusteringLeader struct {
 	ClusterNode                                                                 // base
-	clients     *structs.SessionsDictionary[*clusters.ClusterFollowerContainer] // clients
+	Clients     *structs.SessionsDictionary[*clusters.ClusterFollowerContainer] // clients
 }
 
 func (cluster *ClusteringLeader) IsLeader() bool {
@@ -28,7 +28,7 @@ func (cluster *ClusteringLeader) subscribe(path string) (*res.ClusterMemberSubsc
 		return nil, err
 	}
 
-	index := cluster.clients.Add(candidate)
+	index := cluster.Clients.Add(candidate)
 	cluster.NextEpoch()
 
 	return &res.ClusterMemberSubscriptionResult{
@@ -38,9 +38,9 @@ func (cluster *ClusteringLeader) subscribe(path string) (*res.ClusterMemberSubsc
 }
 
 func (cluster *ClusteringLeader) unsubscribe(clientId int64) (bool, errorinfo.GatewayError) {
-	if client, exists := cluster.clients.GetExists(clientId); exists {
+	if client, exists := cluster.Clients.GetExists(clientId); exists {
 		client.Client.Disconnect()
-		cluster.clients.Delete(clientId)
+		cluster.Clients.Delete(clientId)
 		cluster.NextEpoch()
 
 		return true, nil
@@ -49,9 +49,17 @@ func (cluster *ClusteringLeader) unsubscribe(clientId int64) (bool, errorinfo.Ga
 	return false, nil
 }
 
-func (cluster *ClusteringLeader) healthCheck(serverID, messagesSinceLastCheck, epoch int64, activeSessions int32, healthy bool) (bool, errorinfo.GatewayError) {
-	if member, exists := cluster.clients.GetExists(serverID); exists {
-		member.UpdateStatus(messagesSinceLastCheck, epoch, activeSessions, healthy)
+func (cluster *ClusteringLeader) healthCheck(
+	serverID,
+	messagesSinceLastCheck,
+	epoch int64,
+	activeSessions int32,
+	cpuUsage,
+	ramUsage float32,
+	healthy bool,
+) (bool, errorinfo.GatewayError) {
+	if member, exists := cluster.Clients.GetExists(serverID); exists {
+		member.UpdateStatus(messagesSinceLastCheck, epoch, activeSessions, ramUsage, cpuUsage, healthy)
 		return true, nil
 	}
 
@@ -75,10 +83,10 @@ func (cluster *ClusteringLeader) checkClients() {
 			return
 		}
 
-		keys = cluster.clients.Keys()
+		keys = cluster.Clients.Keys()
 
 		for _, key := range keys {
-			if client, exists := cluster.clients.GetExists(key); exists {
+			if client, exists := cluster.Clients.GetExists(key); exists {
 				if client.IsHealthy() && client.SecondsSinceLastUpdate() > timeout {
 					client.SetHealthStatus(false)
 				}
@@ -89,16 +97,16 @@ func (cluster *ClusteringLeader) checkClients() {
 
 // closes all the clients and then removes them all from the list
 func (cluster *ClusteringLeader) close() {
-	keys := cluster.clients.Keys()
+	keys := cluster.Clients.Keys()
 
 	for _, key := range keys {
-		if client, exists := cluster.clients.GetExists(key); exists {
+		if client, exists := cluster.Clients.GetExists(key); exists {
 			client.Client.DropClient()
 			client.Client.Disconnect()
 		}
 	}
 
-	cluster.clients.Clear()
+	cluster.Clients.Clear()
 }
 
 // creates a new cluster server
@@ -106,7 +114,7 @@ func CreateClusteringLeader(waiter *sync.WaitGroup, config *config.Configuration
 	result := ClusteringLeader{}
 
 	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.checkClients, result.close)
-	result.clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()
+	result.Clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()
 
 	implementation := impl.GenerateClusterLeaderServer(result.subscribe, result.unsubscribe, result.healthCheck)
 	implementation.RegisterToGrpcServer(result.server)

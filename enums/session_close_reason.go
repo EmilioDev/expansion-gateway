@@ -12,4 +12,5 @@ const (
 	CloseReasonProtocolViolation
 	CloseReasonInternalError
 	CloseReasonFailedAuthentication
+	CloseReasonSessionIdTakenByOtherConnection
 )

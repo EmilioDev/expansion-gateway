@@ -34,8 +34,10 @@ message HealthCheckData {
     int64 serverId = 1;
     int32 activeSessions = 2;
     int64 messagesSinceLastCheck = 3;
-    int64 epoch = 4; // increased when user connects/disconnect
+    int64 epoch = 4; // increased when an user connects/disconnect
     bool healthy = 5;
+    float cpuPercentUsage = 6;
+    float ramPercentUsage = 7;
 }
 
 message ServerOperationResult {

@@ -6,17 +6,20 @@ import (
 	"expansion-gateway/clustering"
 	"expansion-gateway/config"
 	"expansion-gateway/dto"
+	"expansion-gateway/dto/clusters"
 	dtoSessions "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
+	"os"
 )
 
 type Layer2Leader struct {
 	*Layer2Core
 	clusterServer *clustering.ClusteringLeader
+	pid           int32
 }
 
 func (layer *Layer2Leader) initializeCluster() errorinfo.GatewayError {
@@ -102,7 +105,7 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 		// if the user wants its datas again, it could just send a connect
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			231,
+			103,
 			enums.LAYER_2,
 			enums.CLIENT_SENT_CONNECT_AT_WRONG_MOMENT)
 
@@ -110,7 +113,7 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 
 	return layererrors.CreateProtocolFlowViolation_LayerError(
 		filePath,
-		239,
+		111,
 		enums.LAYER_2,
 		enums.SESSION_CLOSED)
 }
@@ -209,8 +212,71 @@ func (layer *Layer2Leader) authorizeSession(sessionId int64) {
 	if sessionToApprove, sessionExist := layer.sessions.GetExists(sessionId); sessionExist {
 		sessionToApprove.SetState(enums.RECEIVED_CONNECT)
 
-		// pending to complete, work first in the clustering system,
-		// and then come back here
+		currentProcessData := helpers.GetResourceUsageOfProcessNoError(layer.pid)
+
+		var selectedIndex int64 = 0
+		currentPoint := helpers.CalculateClusterMemberWeight(
+			layer.clusterServer.MessagesCounter.Load(),
+			int32(layer.sessions.Len()),
+			float32(currentProcessData.CPUusage),
+			currentProcessData.RAMusage,
+			true,
+		)
+		tempPoint := currentPoint
+
+		layer.clusterServer.Clients.Iterate(func(index int64, data *clusters.ClusterFollowerContainer) {
+			tempPoint = helpers.CalculateClusterMemberWeight(
+				data.MessagesSinceLastCheck(),
+				data.ActiveSessions(),
+				data.CPUpercentUsage(),
+				data.RAMpercentUsage(),
+				data.IsHealthy(),
+			)
+
+			if tempPoint <= currentPoint {
+				currentPoint = tempPoint
+				selectedIndex = index
+			}
+		})
+
+		if selectedIndex != 0 { // it has to be redirected
+			if member, memberExists := layer.clusterServer.Clients.GetExists(selectedIndex); memberExists {
+				if forwardData, err := member.Client.RequestAcceptClient(
+					sessionId,
+					sessionToApprove.GetFrame(),
+				); err == nil {
+					packet := dto.CreateNewRedirectPacket(sessionId, forwardData)
+					layer.layer1.SendPacket(packet)
+					sessionToApprove.SetState(enums.REDIRECTING)
+					return
+				}
+			}
+		}
+
+		// if the client reaches this point, it stays
+
+		// we first check if the user has requested a session id
+		if requestedSessionId := sessionToApprove.GetRequestedSessionId(); requestedSessionId != 0 {
+			if layer.sessions.Exists(requestedSessionId) { // we check if there is another session on that connection
+				layer.closeSession(requestedSessionId, enums.CloseReasonSessionIdTakenByOtherConnection)
+			}
+
+			// and then we replace
+			layer.sessions.MoveTo(sessionId, requestedSessionId)
+
+			if layer.layer1 != nil {
+				layer.layer1.MoveClientTo(sessionId, requestedSessionId)
+			}
+			if layer.layer3 != nil {
+				layer.layer3.MoveClientTo(sessionId, requestedSessionId)
+			}
+
+			// and we update the session id
+			sessionId = requestedSessionId
+		}
+
+		packet := dto.CreateNewConnectedPacket(sessionId, sessionToApprove)
+		layer.layer1.SendPacket(packet)
 	}
 }
 
@@ -227,6 +293,7 @@ func CreateNewLayer2Leader(conf *config.Configuration) *Layer2Leader {
 
 	answer.Layer2Core = core
 	answer.clusterServer = clustering.CreateClusteringLeader(core.wg, conf)
+	answer.pid = int32(os.Getpid())
 
 	return &answer
 }

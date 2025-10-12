@@ -5,10 +5,13 @@ import (
 	"expansion-gateway/clustering/impl"
 	"expansion-gateway/config"
 	"expansion-gateway/dto/clusters/results"
+	"expansion-gateway/dto/processes"
 	"expansion-gateway/enums"
+	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -52,11 +55,21 @@ func (cluster *ClusteringFollower) initCallback() {
 		defer ticker.Stop()
 
 		cluster.failedConsecutiveschecks = 0
+		pid := int32(os.Getpid())
 
 		// and we have the tick loop here
 		for range ticker.C {
 			if !cluster.isWorking.Load() {
 				return
+			}
+
+			processData, _ := helpers.GetResourceUsageOfProcess(pid)
+
+			if processData == nil { // preventing nil reference panic
+				processData = &processes.ProcessData{
+					RAMusage: 0,
+					CPUusage: 0,
+				}
 			}
 
 			// we send the health check to the leader
@@ -65,6 +78,7 @@ func (cluster *ClusteringFollower) initCallback() {
 				cluster.MessagesCounter.Load(),
 				cluster.epoch.Load(),
 				cluster.thisGateway.GetActiveSessions(),
+				processData,
 				true,
 			); err == nil {
 				cluster.failedConsecutiveschecks = 0
