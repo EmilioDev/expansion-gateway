@@ -1,0 +1,96 @@
+# stage 1 is for caching dependences and building the executable
+FROM alpine:3.22.2 as compiler
+WORKDIR /app
+
+# we first copy the go installer
+COPY deployment/go1.24.2.linux-amd64.tar.gz ./go1.24.2.linux-amd64.tar.gz
+
+# we clean first
+RUN rm -rf /usr/local/go
+
+# we install go
+RUN tar -C /usr/local -xzf ./go1.24.2.linux-amd64.tar.gz
+
+# we clean the installer
+RUN rm ./go1.24.2.linux-amd64.tar.gz
+
+# we add go to the PATH environment variable
+ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
+
+# we update the system
+RUN ["apk", "update"]
+
+# installing protobuf tool
+RUN apk add --no-cache make protobuf-dev
+
+# we install dependencies of protoc-gen-go-grpc
+RUN ["apk", "add", "--no-cache", "git"]
+
+# we add bash for executing the bash file when generating the grpc
+RUN apk add --no-cache --upgrade bash
+
+# adding go's protobuf plugin
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.8
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+
+# ***************
+# copy the main files for downloading dependencies
+COPY go.mod ./go.mod
+COPY go.sum ./go.sum
+
+# download dependencies and create vendor folder
+RUN ["go", "mod", "download"]
+RUN ["go", "mod", "verify"]
+# ***************
+
+# we proceed to copy the source code
+COPY ./ .
+
+# we generate the grpc code files
+RUN ["./compile_proto.sh"]
+
+# we compile it, and it's ready, this stage is finished
+RUN ["go", "build"]
+
+# we now go to the second stage, to run the compiled
+FROM alpine:3.22.2
+
+# let's set the parameters
+ARG KCP_PORT=7500
+ARG GRPC_PORT=45000
+
+# and the env variables
+ENV PORT=${KCP_PORT}
+ENV GRPC_CLUSTER_PORT=${GRPC_PORT}
+ENV BUFFER_SIZE=2048
+ENV SHARD_COUNT=10
+ENV SHARD_BUFFER_SIZE=1500
+ENV CONNECTION_TIMEOUT=
+ENV SESSION_TIMEOUT_SECONDS=60
+ENV SESSION_WATCHER_PERIOD_MS=5000
+
+# private key: K73Pb0/BxWAtnFPJoRGQSBkIMj535uenf0jTve5IaXsuK95EeJf7Anwibo+QXWe5+xxzr4nMNBROd1WYbPmgNQ==
+ENV CLI_AUTH_KEY="LiveRHiX+wJ8Im6PkF1nufscc6+JzDQUTndVmGz5oDU="
+
+# private key: m1U7ebvaJ8W2bXc3mJy0rbKAE/jS2CPIN4Sw5oi81439OYbXirhskGuEF4utMSr2gMahlDhMqeCcHNH/dqKilw==
+ENV GODOT_AUTH_KEY="/TmG14q4bJBrhBeLrTEq9oDGoZQ4TKngnBzR/3aiopc="
+
+ENV CLUSTER_LEADER_GRPC=""
+ENV GRPC_SERVER_PATH="127.0.0.1:${GRPC_PORT}"
+ENV NODE_KCP_PATH="127.0.0.1:${KCP_PORT}"
+
+# the directory where the app will reside
+WORKDIR /app
+
+# we copy the compiled from the previous stage
+COPY --from=compiler /app/expansion-gateway ./expansion-gateway
+
+# we make that compiled an executable
+RUN ["chmod", "+x", "/app/expansion-gateway"]
+
+# exposing the ports
+EXPOSE ${PORT}
+EXPOSE ${GRPC_CLUSTER_PORT}
+
+# and then we set the entry point, and that's it, done.
+ENTRYPOINT ["/app/expansion-gateway"]

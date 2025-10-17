@@ -1,0 +1,11 @@
+.env
+.git
+.gitignore
+.dockerignore
+Dockerfile*
+LICENSE
+README.md
+vendor/
+parsers/packets.txt
+clustering/grpc/
+expansion-gateway*

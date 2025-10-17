@@ -36,8 +36,8 @@ func (conf *Configuration) Initialize() {
 
 	// defaults
 	conf.port = 7000
-	conf.bufferSize = 4096
-	conf.shardCount = 8
+	conf.bufferSize = 4096 // the size of the buffer used to read from the client
+	conf.shardCount = 8    // number of channels used to interact between layers
 	conf.shardBufferSize = 1024
 	conf.timeout = 1
 	conf.sessionTimeout = 30 * time.Second      // default: 30s session timeout
@@ -182,7 +182,7 @@ func (conf *Configuration) GetGrpcClusterLeaderPath() string {
 }
 
 func (conf *Configuration) GetGrpcCurrentServerPath() string {
-	return conf.grpcCurrentPath
+	return fmt.Sprintf("0.0.0.0:%d", conf.grpcClusterPort)
 }
 
 func (conf *Configuration) GetClusterGrpcPort() uint16 {
