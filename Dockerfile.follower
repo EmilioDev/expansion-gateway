@@ -54,8 +54,9 @@ RUN ["go", "build"]
 FROM alpine:3.22.2
 
 # let's set the parameters
-ARG KCP_PORT=7500
+ARG KCP_PORT=7501
 ARG GRPC_PORT=45000
+ARG CLUSTER_LEADER="gateway-leader:45000"
 
 # and the env variables
 ENV PORT=${KCP_PORT}
@@ -73,8 +74,8 @@ ENV CLI_AUTH_KEY="LiveRHiX+wJ8Im6PkF1nufscc6+JzDQUTndVmGz5oDU="
 # private key: m1U7ebvaJ8W2bXc3mJy0rbKAE/jS2CPIN4Sw5oi81439OYbXirhskGuEF4utMSr2gMahlDhMqeCcHNH/dqKilw==
 ENV GODOT_AUTH_KEY="/TmG14q4bJBrhBeLrTEq9oDGoZQ4TKngnBzR/3aiopc="
 
-ENV CLUSTER_LEADER_GRPC=""
-ENV GRPC_SERVER_PATH="127.0.0.1:${GRPC_PORT}"
+ENV CLUSTER_LEADER_GRPC=${CLUSTER_LEADER}
+ENV GRPC_SERVER_PATH="gateway-follower01:${GRPC_PORT}"
 ENV NODE_KCP_PATH="127.0.0.1:${KCP_PORT}"
 
 # the directory where the app will reside
