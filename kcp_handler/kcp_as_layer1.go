@@ -29,6 +29,7 @@ type KcpAsLayer1 struct {
 	parser           parsers.ByteStreamToPacketParser             // the byte array to packet parser
 	working          *atomic.Bool                                 // tells you if this layer is working or not
 	shutdownOnce     *sync.Once                                   // executes the shutdown only once
+	startOnce        *sync.Once                                   //executes the start only once
 	wg               *sync.WaitGroup                              // the wait group of layer 1
 }
 
@@ -41,6 +42,7 @@ func CreateNewKcpLayer1(configuration *config.Configuration,
 		parser:        parser,
 		working:       &atomic.Bool{},
 		shutdownOnce:  &sync.Once{},
+		startOnce:     &sync.Once{},
 		wg:            &sync.WaitGroup{},
 
 		// the channels are not going to be assigned here, this layer will be passed to layer 2
@@ -53,7 +55,7 @@ func CreateNewKcpLayer1(configuration *config.Configuration,
 	return result
 }
 
-func (layer KcpAsLayer1) Start() errorinfo.GatewayError {
+func (layer *KcpAsLayer1) Start() errorinfo.GatewayError {
 	const filePath string = "/kcp_handler/kcp_as_layer1.go"
 	if layer.IsWorking() {
 		return nil
@@ -63,29 +65,33 @@ func (layer KcpAsLayer1) Start() errorinfo.GatewayError {
 		return layererrors.CreateChannelClosed_LayerError(filePath, 50, enums.LAYER_1, enums.OUTPUT_CHANNEL)
 	}
 
-	var serverPath string = layer.configuration.GetServerAddress()
+	var result errorinfo.GatewayError = nil
 
-	if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
-		layer.working.Store(true)
-		fmt.Printf("server running on %s\n", serverPath)
+	layer.startOnce.Do(func() {
+		var serverPath string = layer.configuration.GetServerAddress()
 
-		layer.listener = listener
+		if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
+			layer.working.Store(true)
+			fmt.Printf("server running on %s\n", serverPath)
 
-		go layer.process()
-		go layer.listenFromInputChannel()
+			layer.listener = listener
 
-		return nil
-	} else {
-		return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 66, err), 2)
-	}
+			go layer.process()
+			go layer.listenFromInputChannel()
+		} else {
+			result = helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 66, err), 2)
+		}
+	})
+
+	return result
 }
 
 // IsWorking reports whether the layer is still accepting connections.
-func (layer KcpAsLayer1) IsWorking() bool {
+func (layer *KcpAsLayer1) IsWorking() bool {
 	return layer.working.Load()
 }
 
-func (layer KcpAsLayer1) Stop() errorinfo.GatewayError {
+func (layer *KcpAsLayer1) Stop() errorinfo.GatewayError {
 	if !layer.IsWorking() {
 		return nil
 	}
@@ -107,12 +113,12 @@ func (layer KcpAsLayer1) Stop() errorinfo.GatewayError {
 	return nil
 }
 
-func (layer KcpAsLayer1) ConfigureDumbLayer(outputDispatcher dispatchers.Dispatcher) errorinfo.GatewayError {
+func (layer *KcpAsLayer1) ConfigureDumbLayer(outputDispatcher dispatchers.Dispatcher) errorinfo.GatewayError {
 	layer.outputDispatcher = outputDispatcher
 	return nil
 }
 
-func (layer KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayError {
+func (layer *KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayError {
 	const filePath string = "/kcp_handler/kcp_as_layer1.go"
 
 	if !layer.IsWorking() {
@@ -140,7 +146,7 @@ func (layer KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayErro
 	return nil
 }
 
-func (layer KcpAsLayer1) CloseSession(sessionId int64) errorinfo.GatewayError {
+func (layer *KcpAsLayer1) CloseSession(sessionId int64) errorinfo.GatewayError {
 	if connection, exists := layer.sessions.GetExists(sessionId); exists {
 		layer.sessions.Delete(sessionId)
 		connection.Close()
@@ -149,7 +155,7 @@ func (layer KcpAsLayer1) CloseSession(sessionId int64) errorinfo.GatewayError {
 	return nil
 }
 
-func (layer KcpAsLayer1) MoveClientTo(origin, destiny int64) {
+func (layer *KcpAsLayer1) MoveClientTo(origin, destiny int64) {
 	layer.sessions.MoveTo(origin, destiny)
 }
 

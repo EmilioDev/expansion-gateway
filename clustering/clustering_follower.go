@@ -10,6 +10,7 @@ import (
 	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -56,6 +57,8 @@ func (cluster *ClusteringFollower) initCallback() {
 
 		cluster.failedConsecutiveschecks = 0
 		pid := int32(os.Getpid())
+
+		fmt.Printf("follower %d running\n", cluster.memberID)
 
 		// and we have the tick loop here
 		for range ticker.C {

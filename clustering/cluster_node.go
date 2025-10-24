@@ -84,14 +84,15 @@ func (cluster *ClusterNode) Stop() errorinfo.GatewayError {
 	}
 
 	cluster.stopOnce.Do(func() {
-		cluster.server.GracefulStop()
 		cluster.isWorking.Store(false)
+		cluster.server.GracefulStop()
 
 		if cluster.stopCallback != nil {
 			cluster.stopCallback()
 		}
 
 		cluster.wg.Done()
+		fmt.Println("gateway cluster member is down now!")
 	})
 
 	return nil

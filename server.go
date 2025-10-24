@@ -29,7 +29,13 @@ func (gateway *GatewayServer) initialize() {
 }
 
 func (gateway *GatewayServer) Start() errorinfo.GatewayError {
-	return gateway.mainLayer.Start()
+	if err := gateway.mainLayer.Start(); err == nil {
+		gateway.mainLayer.Wait()
+	} else {
+		return err
+	}
+
+	return nil
 }
 
 func (gateway *GatewayServer) Stop() errorinfo.GatewayError {

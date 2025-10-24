@@ -5,7 +5,6 @@ import (
 	"expansion-gateway/config"
 	dto "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
-	"expansion-gateway/errors/layererrors"
 	disp "expansion-gateway/interfaces/dispatchers"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
@@ -37,23 +36,28 @@ func (layer *Layer2Core) Start() errorinfo.GatewayError {
 		return nil
 	}
 
-	if layer.layer1 == nil || layer.layer3 == nil {
-		return layererrors.CreateDumbLayersNotConfigured_LayerError(
-			"/controllers/layer_2_core.go",
-			40,
-			enums.LAYER_2,
-			layer.layer1,
-			layer.layer3)
-	}
+	// if layer.layer1 == nil || layer.layer3 == nil {
+	// 	return layererrors.CreateDumbLayersNotConfigured_LayerError(
+	// 		"/controllers/layer_2_core.go",
+	// 		40,
+	// 		enums.LAYER_2,
+	// 		layer.layer1,
+	// 		layer.layer3)
+	// }
 
+	// remove those ifs for checking if the layer exists, and uncomment the previous one
 	// Start Layer 1
-	if err := layer.layer1.Start(); err != nil {
-		return err
+	if layer.layer1 != nil {
+		if err := layer.layer1.Start(); err != nil {
+			return err
+		}
 	}
 
 	// Start Layer 3 (if applicable)
-	if err := layer.layer3.Start(); err != nil {
-		return err
+	if layer.layer3 != nil {
+		if err := layer.layer3.Start(); err != nil {
+			return err
+		}
 	}
 
 	layer.working.Store(true)
@@ -118,6 +122,10 @@ func (layer *Layer2Core) GetActiveSessions() int32 {
 
 func (layer *Layer2Core) HasSession(sessionID int64) bool {
 	return layer.sessions.Exists(sessionID)
+}
+
+func (layer *Layer2Core) Wait() {
+	layer.wg.Wait()
 }
 
 // ==== layer 1 handlers

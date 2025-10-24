@@ -8,6 +8,7 @@ import (
 	res "expansion-gateway/dto/clusters/results"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/internal/structs"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -77,6 +78,7 @@ func (cluster *ClusteringLeader) checkClients() {
 	defer ticker.Stop()
 
 	var keys []int64
+	fmt.Println("cluster leader is running")
 
 	for range ticker.C {
 		if !cluster.isWorking.Load() {
