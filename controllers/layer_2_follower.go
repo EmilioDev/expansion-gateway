@@ -2,11 +2,15 @@
 package controllers
 
 import (
+	"crypto/ed25519"
 	"expansion-gateway/clustering"
 	"expansion-gateway/config"
+	"expansion-gateway/dto"
 	"expansion-gateway/dto/clusters/results"
 	"expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
+	auth_errors "expansion-gateway/errors/auth"
+	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/internal/structs"
@@ -45,6 +49,10 @@ func (layer *Layer2Follower) stopCluster() errorinfo.GatewayError {
 
 // ==== handler from layer 1 ====
 func (layer *Layer2Follower) handlePacketFromLayer1(packet packets.Packet) errorinfo.GatewayError {
+	switch packet.GetPacketType() {
+	case enums.REDIRECTED:
+		return layer.handleREDIRECTEDpacket(packet)
+	}
 	return nil
 }
 
@@ -52,6 +60,52 @@ func (layer *Layer2Follower) handlePacketFromLayer1(packet packets.Packet) error
 
 func (layer *Layer2Follower) handlePacketFromLayer3(packet packets.Packet) errorinfo.GatewayError {
 	return nil
+}
+
+// ==== privates ====
+
+// handler for redirected packets
+func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) errorinfo.GatewayError {
+	const filePath string = "/controllers/layer_2_follower.go"
+
+	if redirectedPacket, isRedirected := packet.(*dto.RedirectedPacket); isRedirected {
+		if subscription, hasSubscription := layer.subscriptions.GetExists(redirectedPacket.SubscriptionID); hasSubscription {
+			var key *[]byte = nil
+
+			if subscription.ClientType == enums.GODOT_CLIENT {
+				key = layer.configuration.GetGodotEd25519PublicKey()
+			} else {
+				key = layer.configuration.GetCliEd25519PublicKey()
+			}
+
+			if ed25519.Verify(*key, subscription.Challenge, redirectedPacket.Signature[:]) {
+				newSession := sessions.GenerateNewLayer2Session(layer.configuration)
+				newSession.UpdateFromFollowerSubscription(subscription)
+				layer.subscriptions.Delete(redirectedPacket.SubscriptionID)
+
+				sessionId := layer.sessions.Add(newSession)
+				layer.approveSession(sessionId)
+
+				return nil
+			}
+		}
+
+		// this connection is unauthorized!!!
+		layer.closeSessionInLayer1(redirectedPacket.SubscriptionID, enums.CloseReasonConnectionUnauthorized)
+
+		return auth_errors.CreateConnectionUnauthorizedError(
+			filePath,
+			96,
+			redirectedPacket.SubscriptionID,
+		)
+	}
+
+	// this connection is not respecting the protocol
+	return layererrors.CreateProtocolFlowViolation_LayerError(
+		filePath,
+		103,
+		enums.LAYER_2,
+		enums.INVALID_PACKET)
 }
 
 // ==== constructor ====

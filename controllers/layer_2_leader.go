@@ -34,7 +34,7 @@ func (layer *Layer2Leader) stopCluster() errorinfo.GatewayError {
 
 // global packet handler from layer 1
 func (layer *Layer2Leader) handlePacketFromLayer1(packet packets.Packet) errorinfo.GatewayError {
-	const filePath string = "/controllers/basic_layer_2.go"
+	const filePath string = "/controllers/layer_2_leader.go"
 
 	layer.clusterServer.NewMessage()
 
@@ -210,73 +210,62 @@ func (layer *Layer2Leader) handlePacketFromLayer3(packet packets.Packet) errorin
 // handles a client that has just finished proving its identity successfully
 func (layer *Layer2Leader) authorizeSession(sessionId int64) {
 	if sessionToApprove, sessionExist := layer.sessions.GetExists(sessionId); sessionExist {
-		sessionToApprove.SetState(enums.RECEIVED_CONNECT)
+		switch sessionToApprove.GetState() {
+		case enums.SESSION_CONNECTED:
+			packet := dto.CreateNewConnectedPacket(sessionId, sessionToApprove)
+			layer.layer1.SendPacket(packet)
 
-		currentProcessData := helpers.GetResourceUsageOfProcessNoError(layer.pid)
+		case enums.CHALLENGE_SENT, enums.RECEIVED_CONNECT: // the user just proved identity
+			sessionToApprove.SetState(enums.RECEIVED_CONNECT)
 
-		var selectedIndex int64 = 0
-		currentPoint := helpers.CalculateClusterMemberWeight(
-			layer.clusterServer.MessagesCounter.Load(),
-			int32(layer.sessions.Len()),
-			float32(currentProcessData.CPUusage),
-			currentProcessData.RAMusage,
-			true,
-		)
-		tempPoint := currentPoint
+			currentProcessData := helpers.GetResourceUsageOfProcessNoError(layer.pid)
 
-		layer.clusterServer.Clients.Iterate(func(index int64, data *clusters.ClusterFollowerContainer) {
-			tempPoint = helpers.CalculateClusterMemberWeight(
-				data.MessagesSinceLastCheck(),
-				data.ActiveSessions(),
-				data.CPUpercentUsage(),
-				data.RAMpercentUsage(),
-				data.IsHealthy(),
+			var selectedIndex int64 = 0
+			currentPoint := helpers.CalculateClusterMemberWeight(
+				layer.clusterServer.MessagesCounter.Load(),
+				int32(layer.sessions.Len()),
+				float32(currentProcessData.CPUusage),
+				currentProcessData.RAMusage,
+				true,
 			)
+			tempPoint := currentPoint
 
-			if tempPoint <= currentPoint {
-				currentPoint = tempPoint
-				selectedIndex = index
-			}
-		})
+			layer.clusterServer.Clients.Iterate(func(index int64, data *clusters.ClusterFollowerContainer) {
+				tempPoint = helpers.CalculateClusterMemberWeight(
+					data.MessagesSinceLastCheck(),
+					data.ActiveSessions(),
+					data.CPUpercentUsage(),
+					data.RAMpercentUsage(),
+					data.IsHealthy(),
+				)
 
-		if selectedIndex != 0 { // it has to be redirected
-			if member, memberExists := layer.clusterServer.Clients.GetExists(selectedIndex); memberExists {
-				if forwardData, err := member.Client.RequestAcceptClient(
-					sessionId,
-					sessionToApprove.GetFrame(),
-				); err == nil {
-					packet := dto.CreateNewRedirectPacket(sessionId, forwardData)
-					layer.layer1.SendPacket(packet)
-					sessionToApprove.SetState(enums.REDIRECTING)
-					return
+				if tempPoint <= currentPoint {
+					currentPoint = tempPoint
+					selectedIndex = index
+				}
+			})
+
+			if selectedIndex != 0 { // it has to be redirected
+				if member, memberExists := layer.clusterServer.Clients.GetExists(selectedIndex); memberExists {
+					if forwardData, err := member.Client.RequestAcceptClient(
+						sessionId,
+						sessionToApprove.GetFrame(),
+					); err == nil {
+						packet := dto.CreateNewRedirectPacket(sessionId, forwardData)
+						layer.layer1.SendPacket(packet)
+						sessionToApprove.SetState(enums.REDIRECTING)
+						return
+					}
 				}
 			}
+
+			// if the client reaches this point, it stays
+			layer.approveSession(sessionId)
+
+		default: // if the status is none of the expected ones
+			layer.closeSession(sessionId, enums.CloseReasonProtocolViolation)
 		}
 
-		// if the client reaches this point, it stays
-
-		// we first check if the user has requested a session id
-		if requestedSessionId := sessionToApprove.GetRequestedSessionId(); requestedSessionId != 0 {
-			if layer.sessions.Exists(requestedSessionId) { // we check if there is another session on that connection
-				layer.closeSession(requestedSessionId, enums.CloseReasonSessionIdTakenByOtherConnection)
-			}
-
-			// and then we replace
-			layer.sessions.MoveTo(sessionId, requestedSessionId)
-
-			if layer.layer1 != nil {
-				layer.layer1.MoveClientTo(sessionId, requestedSessionId)
-			}
-			if layer.layer3 != nil {
-				layer.layer3.MoveClientTo(sessionId, requestedSessionId)
-			}
-
-			// and we update the session id
-			sessionId = requestedSessionId
-		}
-
-		packet := dto.CreateNewConnectedPacket(sessionId, sessionToApprove)
-		layer.layer1.SendPacket(packet)
 	}
 }
 

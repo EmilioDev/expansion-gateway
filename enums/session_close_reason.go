@@ -13,4 +13,5 @@ const (
 	CloseReasonInternalError
 	CloseReasonFailedAuthentication
 	CloseReasonSessionIdTakenByOtherConnection
+	CloseReasonConnectionUnauthorized
 )

@@ -3,10 +3,12 @@ package main
 import (
 	"expansion-gateway/config"
 	"expansion-gateway/controllers"
+	"expansion-gateway/input/kcp_handler"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
-	"expansion-gateway/kcp_handler"
+	"expansion-gateway/output/nats"
 	"expansion-gateway/parsers"
+	"log"
 )
 
 type GatewayServer struct {
@@ -32,6 +34,7 @@ func (gateway *GatewayServer) Start() errorinfo.GatewayError {
 	if err := gateway.mainLayer.Start(); err == nil {
 		gateway.mainLayer.Wait()
 	} else {
+		log.Fatalln(err)
 		return err
 	}
 
@@ -61,11 +64,15 @@ func (gateway *GatewayServer) getLayer1() layers.Layer1 {
 }
 
 func (gateway *GatewayServer) getLayer2() layers.Layer2 {
-	return controllers.CreateNewLayer2Leader(gateway.config)
+	if gateway.config.AreWeClusterLeaders() {
+		return controllers.CreateNewLayer2Leader(gateway.config)
+	}
+
+	return controllers.CreateNewLayer2Follower(gateway.config)
 }
 
 func (gateway *GatewayServer) getLayer3() layers.Layer3 {
-	return nil
+	return nats.GenerateNewNatsLayer3Output(gateway.config)
 }
 
 func GetGateway() *GatewayServer {

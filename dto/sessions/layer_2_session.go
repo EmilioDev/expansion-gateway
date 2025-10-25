@@ -252,6 +252,19 @@ func (session *Layer2Session) UpdateFromHelloPacket(packet *dto.HelloPacket) {
 	}
 }
 
+// update from a follower subscription
+func (session *Layer2Session) UpdateFromFollowerSubscription(subscription *Layer2FollowerSubscription) {
+	session.bulkUpdaterMutex.Lock()
+	defer session.bulkUpdaterMutex.Unlock()
+
+	session.clientType.Store(int32(subscription.ClientType))
+	session.clientVersion.Store(uint32(subscription.ClientVersion))
+	session.encryption.Store(int32(subscription.Encryption))
+	session.sessionResume.Store(subscription.SessionResume)
+	session.protocolVersion.Store(int32(subscription.ProtocolVersion))
+	session.requestedSessionId.Store(subscription.RequestedSessionID)
+}
+
 func (session *Layer2Session) GetEd25519PublicKey() []byte {
 	switch session.GetClientType() {
 	case enums.CLI_TOOL:
