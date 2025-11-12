@@ -8,6 +8,7 @@ service ExpansionGatewayClusterLeader {
     rpc Subscribe(FollowerSubscriptionData) returns (SubscriptionResult);
     rpc Unsubscribe(FollowerUnsubscriptionData) returns (ServerOperationResult); 
     rpc HealthCheck(HealthCheckData) returns (ServerOperationResult);
+    rpc UserIsRedirected(UserRedirectedData) returns (ServerOperationResult);
 }
 
 message FollowerSubscriptionData {
@@ -16,6 +17,10 @@ message FollowerSubscriptionData {
 
 message FollowerUnsubscriptionData {
     int64 serverID = 1;
+}
+
+message UserRedirectedData {
+    int64 userID = 1;
 }
 
 message SubscriptionResult {

@@ -1,7 +1,7 @@
 packet cycle:
   client:   hello           connect                             redirected/publish/subscribe/unsubscribe/disconnect
 
-  server:         challenge         connected/redirect/disconnect
+  server:         challenge         connected/redirect/disconnect                                                     connected/publish/puback/suback/unsuback/disconect
 
 packet types:
     hello:

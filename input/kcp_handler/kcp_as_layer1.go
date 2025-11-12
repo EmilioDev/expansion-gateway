@@ -159,6 +159,13 @@ func (layer *KcpAsLayer1) MoveClientTo(origin, destiny int64) {
 	layer.sessions.MoveTo(origin, destiny)
 }
 
+func (layer *KcpAsLayer1) DisableSession(sessionId int64) {
+	if session, exists := layer.sessions.GetExists(sessionId); exists && session != nil {
+		session.Close()
+		layer.sessions.Store(nil, sessionId)
+	}
+}
+
 func (layer *KcpAsLayer1) listenFromInputChannel() {
 	// for now, still pending...
 }
@@ -178,13 +185,14 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 	defer layer.wg.Done()
 
 	buffer := make([]byte, layer.configuration.GetBufferSize())
-
-	var session *kcp.UDPSession = nil
-	sessionExists := true
 	timeoutDuration := time.Duration(layer.configuration.GetConnectionTimeout()) * time.Second
 
 	for {
-		if session, sessionExists = layer.sessions.GetExists(connectionId); sessionExists {
+		if session, sessionExists := layer.sessions.GetExists(connectionId); sessionExists {
+			if session == nil {
+				return
+			}
+
 			if !layer.IsWorking() {
 				session.Close()
 				return

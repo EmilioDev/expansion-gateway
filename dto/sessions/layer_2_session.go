@@ -8,6 +8,7 @@ import (
 	"expansion-gateway/enums"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Layer2Session struct {
@@ -38,6 +39,8 @@ type Layer2Session struct {
 
 	// encryption key
 	encryptionKey []byte
+
+	redirectPacket atomic.Pointer[dto.RedirectPacket]
 }
 
 // GenerateNewLayer2Session creates a new Layer2Session with default values
@@ -50,6 +53,7 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		bulkUpdaterMutex: sync.RWMutex{},
 		timeoutTracker:   NewTimeoutTracker(config.GetSessionTimeout()),
 		configuration:    config,
+		redirectPacket:   atomic.Pointer[dto.RedirectPacket]{},
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))
@@ -61,6 +65,18 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 	s.sessionResume.Store(false)
 
 	return s
+}
+
+// ===== Redirect Packet =====
+
+// returns the redirect packet stored in this session
+func (s *Layer2Session) GetRedirectPacket() *dto.RedirectPacket {
+	return s.redirectPacket.Load()
+}
+
+// stores a new redirect packet in this session
+func (s *Layer2Session) SetRedirectPacket(packet *dto.RedirectPacket) {
+	s.redirectPacket.Store(packet)
 }
 
 // ===== State =====
@@ -217,7 +233,14 @@ func (s *Layer2Session) RefreshActivity() {
 	}
 }
 
+// it extends the session timeout
+func (s *Layer2Session) ExtendTimeoutInterval() {
+	s.timeoutTracker.timeout = time.Hour * 6
+}
+
 // ==== Bulk updaters ====
+
+// updates the session states from a hello packet
 func (session *Layer2Session) UpdateFromHelloPacket(packet *dto.HelloPacket) {
 	// lock packet to avoid race conditions
 	session.bulkUpdaterMutex.Lock()
@@ -252,6 +275,8 @@ func (session *Layer2Session) UpdateFromHelloPacket(packet *dto.HelloPacket) {
 	}
 }
 
+// ==== Generics ====
+
 // update from a follower subscription
 func (session *Layer2Session) UpdateFromFollowerSubscription(subscription *Layer2FollowerSubscription) {
 	session.bulkUpdaterMutex.Lock()
@@ -265,6 +290,7 @@ func (session *Layer2Session) UpdateFromFollowerSubscription(subscription *Layer
 	session.requestedSessionId.Store(subscription.RequestedSessionID)
 }
 
+// gets the key for the client check
 func (session *Layer2Session) GetEd25519PublicKey() []byte {
 	switch session.GetClientType() {
 	case enums.CLI_TOOL:
@@ -278,10 +304,12 @@ func (session *Layer2Session) GetEd25519PublicKey() []byte {
 	}
 }
 
+// gets the configuration object
 func (s *Layer2Session) GetConfiguration() *config.Configuration {
 	return s.configuration
 }
 
+// gets the current frame of the status of this session
 func (s *Layer2Session) GetFrame() *SessionFrame {
 	s.bulkUpdaterMutex.RLock()
 	defer s.bulkUpdaterMutex.RUnlock()

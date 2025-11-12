@@ -9,3 +9,4 @@ import (
 type ClusterLeaderSubscribeCallback func(string) (*dto.ClusterMemberSubscriptionResult, errorinfo.GatewayError)
 type ClusterLeaderUnsubscribeCallback func(int64) (bool, errorinfo.GatewayError)
 type ClusterLeaderHealthCheckCallback func(int64, int64, int64, int32, float32, float32, bool) (bool, errorinfo.GatewayError)
+type ClusterLeaderUserRedirectedCallback func(int64)

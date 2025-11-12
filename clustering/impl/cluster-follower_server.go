@@ -73,7 +73,7 @@ func (server *ClusterFollower_Server) RequestAcceptClient(context context.Contex
 				},
 			}, nil
 		} else {
-			return nil, status.Errorf(codes.Internal, "error: %s, code: %d", err.Error(), err.GetErrorCode())
+			return nil, status.Errorf(codes.Unavailable, "error: %s, code: %d", err.Error(), err.GetErrorCode())
 		}
 	}
 

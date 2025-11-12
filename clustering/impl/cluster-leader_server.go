@@ -15,21 +15,24 @@ type ClusterLeader_Server struct {
 
 	// ==== callbacks ====
 
-	subscribeCallback   ClusterLeaderSubscribeCallback   // subscribe callback
-	unsubscribeCallback ClusterLeaderUnsubscribeCallback // unsubscribe callback
-	healthCheckCallback ClusterLeaderHealthCheckCallback // health check callback
+	subscribeCallback      ClusterLeaderSubscribeCallback      // subscribe callback
+	unsubscribeCallback    ClusterLeaderUnsubscribeCallback    // unsubscribe callback
+	healthCheckCallback    ClusterLeaderHealthCheckCallback    // health check callback
+	userRedirectedCallback ClusterLeaderUserRedirectedCallback // user redirected callback
 }
 
 // creates a new server for a cluster leader
 func GenerateClusterLeaderServer(
 	subscribeCallback ClusterLeaderSubscribeCallback,
 	unsubscribeCallback ClusterLeaderUnsubscribeCallback,
-	healthCheckCallback ClusterLeaderHealthCheckCallback) *ClusterLeader_Server {
+	healthCheckCallback ClusterLeaderHealthCheckCallback,
+	userRedirectedCallback ClusterLeaderUserRedirectedCallback) *ClusterLeader_Server {
 	return &ClusterLeader_Server{
 		grpc.UnimplementedExpansionGatewayClusterLeaderServer{},
 		subscribeCallback,
 		unsubscribeCallback,
 		healthCheckCallback,
+		userRedirectedCallback,
 	}
 }
 
@@ -93,4 +96,12 @@ func (sv *ClusterLeader_Server) HealthCheck(context context.Context, data *grpc.
 
 func (sv *ClusterLeader_Server) RegisterToGrpcServer(server *rpc.Server) {
 	grpc.RegisterExpansionGatewayClusterLeaderServer(server, sv)
+}
+
+func (sv *ClusterLeader_Server) UserIsRedirected(ctx context.Context, data *grpc.UserRedirectedData) (*grpc.ServerOperationResult, error) {
+	sv.userRedirectedCallback(data.UserID)
+
+	return &grpc.ServerOperationResult{
+		Success: true,
+	}, nil
 }

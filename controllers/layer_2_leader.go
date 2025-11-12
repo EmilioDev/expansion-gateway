@@ -22,6 +22,23 @@ type Layer2Leader struct {
 	pid           int32
 }
 
+func (layer *Layer2Leader) MarkUserAsRedirected(userId int64) {
+	if session, sessionExists := layer.sessions.GetExists(userId); sessionExists {
+		if session.GetState() == enums.REDIRECTING {
+			// we mark this session as already redirected
+			session.SetState(enums.REDIRECTED_TO_MEMBER)
+
+			// we refresh the session and extend the lifetime
+			session.RefreshActivity()
+			session.ExtendTimeoutInterval()
+
+			// and we disable the inputs
+			layer.closeSessionInLayer3(userId, enums.CloseReasonUserRedirected)
+			layer.layer1.DisableSession(userId)
+		}
+	}
+}
+
 func (layer *Layer2Leader) initializeCluster() errorinfo.GatewayError {
 	return layer.clusterServer.Start()
 }
@@ -46,21 +63,21 @@ func (layer *Layer2Leader) handlePacketFromLayer1(packet packets.Packet) errorin
 
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			171,
+			69,
 			enums.LAYER_2,
 			enums.INCORRECT_PACKET_KIND)
 
 	case enums.CHALLENGE: // clients should never send a challenge
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			178,
+			76,
 			enums.LAYER_2,
 			enums.CLIENT_SENT_CHALLENGE)
 
 	case enums.NONE: //the layer 1 received an invalid packet
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			185,
+			83,
 			enums.LAYER_2,
 			enums.INVALID_PACKET)
 
@@ -71,7 +88,7 @@ func (layer *Layer2Leader) handlePacketFromLayer1(packet packets.Packet) errorin
 
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			196,
+			94,
 			enums.LAYER_2,
 			enums.INCORRECT_PACKET_KIND)
 	}
@@ -84,10 +101,15 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 	sessionId := packet.GetSender()
 	const filePath string = "/controllers/layer_2_leader.go"
 
+	if layer.isRedirecting(sessionId) {
+		return nil
+	}
+
 	if session, sessionExists := layer.sessions.GetExists(sessionId); sessionExists {
 		session.RefreshActivity()
 
 		if state := session.GetState(); state == enums.CHALLENGE_SENT || state == enums.RECEIVED_CONNECT {
+			session.SetState(enums.RECEIVED_CONNECT)
 			publicKey := session.GetEd25519PublicKey()
 			challenge := session.GetChallenge()
 
@@ -105,7 +127,7 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 		// if the user wants its datas again, it could just send a connect
 		return layererrors.CreateProtocolFlowViolation_LayerError(
 			filePath,
-			103,
+			133,
 			enums.LAYER_2,
 			enums.CLIENT_SENT_CONNECT_AT_WRONG_MOMENT)
 
@@ -113,7 +135,7 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 
 	return layererrors.CreateProtocolFlowViolation_LayerError(
 		filePath,
-		111,
+		141,
 		enums.LAYER_2,
 		enums.SESSION_CLOSED)
 }
@@ -124,6 +146,10 @@ func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.
 	const filePath string = "/controllers/layer_2_leader.go"
 	var newChallenge []byte
 	var err errorinfo.GatewayError = nil
+
+	if layer.isRedirecting(clientId) {
+		return nil
+	}
 
 	// if the session exists, then this is a retry packet
 	if sessionStored, sessionExist := layer.sessions.GetExists(clientId); sessionExist {
@@ -253,7 +279,9 @@ func (layer *Layer2Leader) authorizeSession(sessionId int64) {
 					); err == nil {
 						packet := dto.CreateNewRedirectPacket(sessionId, forwardData)
 						layer.layer1.SendPacket(packet)
+						sessionToApprove.SetRedirectPacket(packet)
 						sessionToApprove.SetState(enums.REDIRECTING)
+
 						return
 					}
 				}
@@ -281,7 +309,7 @@ func CreateNewLayer2Leader(conf *config.Configuration) *Layer2Leader {
 	)
 
 	answer.Layer2Core = core
-	answer.clusterServer = clustering.CreateClusteringLeader(core.wg, conf)
+	answer.clusterServer = clustering.CreateClusteringLeader(core.wg, conf, &answer)
 	answer.pid = int32(os.Getpid())
 
 	return &answer

@@ -14,4 +14,5 @@ const (
 	CloseReasonFailedAuthentication
 	CloseReasonSessionIdTakenByOtherConnection
 	CloseReasonConnectionUnauthorized
+	CloseReasonUserRedirected
 )

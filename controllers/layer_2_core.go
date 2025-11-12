@@ -173,7 +173,7 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 				case 13: // protocol violation
 					layer.closeSession(sessionToClose, enums.CloseReasonProtocolViolation)
 
-				case 8, 9, 10, 11, 12:
+				case 8, 9, 10, 11, 12: // internal error
 					layer.closeSession(sessionToClose, enums.CloseReasonInternalError)
 
 				case 0, 1, 2, 3, 4, 5, 6: // packet error
@@ -223,7 +223,7 @@ func (layer *Layer2Core) closeSessionInLayer3(sessionId int64, reason enums.Sess
 	}
 }
 
-// ==== aprove session
+// ===== aprove session =====
 
 // updates a session to the connected state and sends a connect packet to that client
 func (layer *Layer2Core) approveSession(sessionId int64) {
@@ -240,6 +240,7 @@ func (layer *Layer2Core) approveSession(sessionId int64) {
 			if layer.layer1 != nil {
 				layer.layer1.MoveClientTo(sessionId, requestedSessionId)
 			}
+
 			if layer.layer3 != nil {
 				layer.layer3.MoveClientTo(sessionId, requestedSessionId)
 			}
@@ -255,7 +256,22 @@ func (layer *Layer2Core) approveSession(sessionId int64) {
 	}
 }
 
-// ==== timeout watcher ====
+// ===== redirecting =====
+
+// if this session is marked as redirecting it re-sends the redirect packet to the client
+// and returns true, if not, it only returns false and does nothing else.
+func (layer *Layer2Core) isRedirecting(sessionId int64) bool {
+	if session, sessionExists := layer.sessions.GetExists(sessionId); sessionExists {
+		if session.GetState() == enums.REDIRECTING {
+			layer.layer1.SendPacket(session.GetRedirectPacket())
+			return true
+		}
+	}
+
+	return false
+}
+
+// ===== timeout watcher =====
 
 func (layer *Layer2Core) sessionTimeoutWatcher() {
 	defer layer.wg.Done()

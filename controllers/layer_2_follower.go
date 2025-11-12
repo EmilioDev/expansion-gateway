@@ -36,6 +36,7 @@ func (layer *Layer2Follower) GenerateUserSubscription(
 	return &results.ClustersSubscriptionRequestBody{
 		SubscriptionID: subscriptionId,
 		Challenge:      subscription.GetChallengeAsInt32Array(),
+		GatewayPath:    layer.configuration.GetKcpPathToThisGateway(),
 	}, nil
 }
 
@@ -53,6 +54,7 @@ func (layer *Layer2Follower) handlePacketFromLayer1(packet packets.Packet) error
 	case enums.REDIRECTED:
 		return layer.handleREDIRECTEDpacket(packet)
 	}
+
 	return nil
 }
 

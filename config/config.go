@@ -13,19 +13,19 @@ import (
 )
 
 type Configuration struct {
-	port                  uint16        // the port used by the layer 1 to listen for connections
-	bufferSize            int           // the max size of each packet
-	shardCount            int           // number of channels to be used between the dispatchers and the receivers
-	shardBufferSize       int           // the number of packets that should be buffered in the packet receivers between the layers
-	timeout               int           // the connection timeout of each client to the layer 1
-	sessionTimeout        time.Duration // time each session has to do any activity before being declared as inactive and then deleted (seconds)
-	sessionWatcherPeriod  time.Duration // the watcher period, the time between each check to see if there is an idle session (milliseconds)
-	godotEd25519PublicKey []byte        // the public key used in the Ed25519 authentication for godot
-	cliEd25519PublicKey   []byte        // the public key used in the Ed25519 authentication for the cli tool
-	grpcLeaderPath        string        // path to the leader of the cluster, if this field is empty, this node is a leader in the cluster
-	grpcCurrentPath       string        // path to access to this node
-	kcpPath               string        // the kcp path that should be used when redirecting to this node
-	grpcClusterPort       uint16        // the port this cluster member is using to receive request from other members
+	port                     uint16        // the port used by the layer 1 to listen for connections
+	bufferSize               int           // the max size of each packet
+	shardCount               int           // number of channels to be used between the dispatchers and the receivers
+	shardBufferSize          int           // the number of packets that should be buffered in the packet receivers between the layers
+	timeout                  int           // the connection timeout of each client to the layer 1
+	sessionTimeout           time.Duration // time each session has to do any activity before being declared as inactive and then deleted (seconds)
+	sessionWatcherPeriod     time.Duration // the watcher period, the time between each check to see if there is an idle session (milliseconds)
+	godotEd25519PublicKey    []byte        // the public key used in the Ed25519 authentication for godot
+	cliEd25519PublicKey      []byte        // the public key used in the Ed25519 authentication for the cli tool
+	grpcLeaderPath           string        // path to the leader of the cluster, if this field is empty, this node is a leader in the cluster
+	grpcIpAddressWithoutPort string        // path to access to this node
+	kcpPath                  string        // the kcp path that should be used when redirecting to this node
+	grpcClusterPort          uint16        // the port this cluster member is using to receive request from other members
 }
 
 // Initialices this module
@@ -45,7 +45,7 @@ func (conf *Configuration) Initialize() {
 	conf.godotEd25519PublicKey = defaultEd25519PublicKey[:]
 	conf.cliEd25519PublicKey = defaultEd25519PublicKey[:]
 	conf.grpcLeaderPath = ""
-	conf.grpcCurrentPath = "127.0.0.1:4500"
+	conf.grpcIpAddressWithoutPort = "0.0.0.0"
 	conf.kcpPath = "127.0.0.1:7000"
 	conf.grpcClusterPort = 40000 // yes, warhammer 40k!!!!
 
@@ -126,14 +126,18 @@ func (conf *Configuration) Initialize() {
 	}
 
 	// path to the current grpc server
-	if s := os.Getenv("GRPC_SERVER_PATH"); s != "" {
-		conf.grpcCurrentPath = s
+	if s := os.Getenv("GRPC_SERVER_IP_PATH_WITHOUT_PORT"); s != "" {
+		conf.grpcIpAddressWithoutPort = s
 	}
 
 	// path that should be used when redirecting to this node in kcp
 	if s := os.Getenv("NODE_KCP_PATH"); s != "" {
 		conf.kcpPath = s
 	}
+}
+
+func (conf *Configuration) GetKcpPathToThisGateway() string {
+	return conf.kcpPath
 }
 
 // returns the server address to be used in this server
@@ -182,7 +186,7 @@ func (conf *Configuration) GetGrpcClusterLeaderPath() string {
 }
 
 func (conf *Configuration) GetGrpcCurrentServerPath() string {
-	return fmt.Sprintf("0.0.0.0:%d", conf.grpcClusterPort)
+	return fmt.Sprintf("%s:%d", conf.grpcIpAddressWithoutPort, conf.grpcClusterPort)
 }
 
 func (conf *Configuration) GetClusterGrpcPort() uint16 {

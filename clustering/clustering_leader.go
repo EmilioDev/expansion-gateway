@@ -7,6 +7,7 @@ import (
 	"expansion-gateway/dto/clusters"
 	res "expansion-gateway/dto/clusters/results"
 	"expansion-gateway/interfaces/errorinfo"
+	"expansion-gateway/interfaces/layers"
 	"expansion-gateway/internal/structs"
 	"fmt"
 	"sync"
@@ -111,14 +112,25 @@ func (cluster *ClusteringLeader) close() {
 	cluster.Clients.Clear()
 }
 
+func (cluster *ClusteringLeader) markUserAsRedirected(userId int64) {
+	//
+}
+
 // creates a new cluster server
-func CreateClusteringLeader(waiter *sync.WaitGroup, config *config.Configuration) *ClusteringLeader {
+func CreateClusteringLeader(
+	waiter *sync.WaitGroup,
+	config *config.Configuration,
+	gateway layers.Layer2Leader) *ClusteringLeader {
 	result := ClusteringLeader{}
 
 	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.checkClients, result.close)
 	result.Clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()
 
-	implementation := impl.GenerateClusterLeaderServer(result.subscribe, result.unsubscribe, result.healthCheck)
+	implementation := impl.GenerateClusterLeaderServer(
+		result.subscribe,
+		result.unsubscribe,
+		result.healthCheck,
+		result.markUserAsRedirected)
 	implementation.RegisterToGrpcServer(result.server)
 
 	return &result

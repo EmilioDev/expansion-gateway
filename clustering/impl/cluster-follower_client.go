@@ -11,6 +11,7 @@ import (
 	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/errorinfo"
 	"flag"
+	"fmt"
 	"math"
 	"time"
 
@@ -31,7 +32,8 @@ func CreateClusterFollowerClient() *ClusterFollower_Client {
 }
 
 func (c *ClusterFollower_Client) Connect(source string) errorinfo.GatewayError {
-	address := flag.String("addr", source, "the address to connect to")
+	addr := fmt.Sprintf("addr%d", helpers.GenerateRandomInt64())
+	address := flag.String(addr, source, "the address to connect to")
 
 	if conn, err := google.NewClient(*address, google.WithTransportCredentials(insecure.NewCredentials())); err == nil {
 		c.connection = conn
@@ -129,6 +131,7 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 		response := clusters.ClusterUserSubscriptionResult{
 			Challenge:      []byte{},
 			SubscriptionID: res.Body.SubscriptionID,
+			GatewayPath:    res.Body.NewGatewayAddress,
 		}
 
 		iterations := len(res.Body.Challenge)
