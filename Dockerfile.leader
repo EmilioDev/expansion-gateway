@@ -80,7 +80,6 @@ ENV GODOT_AUTH_KEY="/TmG14q4bJBrhBeLrTEq9oDGoZQ4TKngnBzR/3aiopc="
 
 ENV CLUSTER_LEADER_GRPC=""
 ENV GRPC_SERVER_PATH="gateway-leader:${GRPC_PORT}"
-ENV NODE_KCP_PATH="127.0.0.1:${KCP_PORT}"
 
 # the directory where the app will reside
 WORKDIR /app

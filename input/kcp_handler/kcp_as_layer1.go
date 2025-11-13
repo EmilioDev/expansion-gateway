@@ -56,7 +56,7 @@ func CreateNewKcpLayer1(configuration *config.Configuration,
 }
 
 func (layer *KcpAsLayer1) Start() errorinfo.GatewayError {
-	const filePath string = "/kcp_handler/kcp_as_layer1.go"
+	const filePath string = "/input/kcp_handler/kcp_as_layer1.go"
 	if layer.IsWorking() {
 		return nil
 	}
@@ -79,7 +79,7 @@ func (layer *KcpAsLayer1) Start() errorinfo.GatewayError {
 			go layer.process()
 			go layer.listenFromInputChannel()
 		} else {
-			result = helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 66, err), 2)
+			result = helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 82, err), 2)
 		}
 	})
 
@@ -119,7 +119,7 @@ func (layer *KcpAsLayer1) ConfigureDumbLayer(outputDispatcher dispatchers.Dispat
 }
 
 func (layer *KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayError {
-	const filePath string = "/kcp_handler/kcp_as_layer1.go"
+	const filePath string = "/input/kcp_handler/kcp_as_layer1.go"
 
 	if !layer.IsWorking() {
 		return layererrors.CreateLayerClosed_LayerError(filePath, 126, enums.LAYER_1)
