@@ -68,7 +68,7 @@ func (layer *KcpAsLayer1) Start() errorinfo.GatewayError {
 	var result errorinfo.GatewayError = nil
 
 	layer.startOnce.Do(func() {
-		var serverPath string = layer.configuration.GetServerAddress()
+		var serverPath string = layer.configuration.GetKcpPathToThisGateway()
 
 		if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
 			layer.working.Store(true)

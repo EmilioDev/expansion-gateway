@@ -1,18 +1,23 @@
 # stage 1 is for caching dependences and building the executable
 FROM alpine:3.22.2 as compiler
+
+# the go dist used, we ae going to store it locally to avoid network issues
+# and to grant that docker is using the same version used during development
+ARG GO_DIST="go1.24.2.linux-amd64.tar.gz"
+
 WORKDIR /compiled
 
 # we first copy the go installer
-COPY deployment/go1.24.2.linux-amd64.tar.gz ./go1.24.2.linux-amd64.tar.gz
+COPY deployment/${GO_DIST} ./${GO_DIST}
 
 # we clean first
 RUN rm -rf /usr/local/go
 
 # we install go
-RUN tar -C /usr/local -xzf ./go1.24.2.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf ./${GO_DIST}
 
 # we clean the installer
-RUN rm ./go1.24.2.linux-amd64.tar.gz
+RUN rm ./${GO_DIST}
 
 # we add go to the PATH environment variable
 ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"

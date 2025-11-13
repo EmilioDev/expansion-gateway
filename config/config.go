@@ -24,9 +24,24 @@ type Configuration struct {
 	cliEd25519PublicKey      []byte        // the public key used in the Ed25519 authentication for the cli tool
 	grpcLeaderPath           string        // path to the leader of the cluster, if this field is empty, this node is a leader in the cluster
 	grpcIpAddressWithoutPort string        // path to access to this node
-	kcpPath                  string        // the kcp path that should be used when redirecting to this node
+	kcpPathWithoutPort       string        // the kcp path that should be used when redirecting to this node
 	grpcClusterPort          uint16        // the port this cluster member is using to receive request from other members
 }
+
+// ===== environment variables, their description, and their default value
+// PORT: the port used to listen for kcp connections from internet. default: 7000
+// GRPC_CLUSTER_PORT: the port used by the gRPC server to interact with the cluster members. default: 40000
+// BUFFER_SIZE: the number of bytes used as buffer for reading from each kcp client. default: 4096
+// SHARD_COUNT: the number of sharded channels used to communicate between each layer. default: 8
+// SHARD_BUFFER_SIZE: the number of messages that can be stacked in each of the sharded channels between the layers. default: 1024
+// CONNECTION_TIMEOUT: the timeout in seconds used by each kcp connection. default: 1
+// SESSION_TIMEOUT_SECONDS: the timeout each session has in layer 2 before being disconnected for inactivity. default: 30 seconds
+// SESSION_WATCHER_PERIOD_MS: the period between each check to find if any session is inactive. default: 1 second
+// CLI_AUTH_KEY: the cli auth key used to validate the cli app. default: [0-31]
+// GODOT_AUTH_KEY: the key used by the game to prove its identity. default: [0-31]
+// CLUSTER_LEADER_GRPC: the path to the cluster leader of this cluster. default: empty
+// GRPC_SERVER_IP_PATH_WITHOUT_PORT: the ip, without the port, used by the grpc server of this cluster member. default: "0.0.0.0"
+// NODE_KCP_PATH: the ip, without the port, that should be used when redirecting to this cluster member. default: 127.0.0.1
 
 // Initialices this module
 func (conf *Configuration) Initialize() {
@@ -46,7 +61,7 @@ func (conf *Configuration) Initialize() {
 	conf.cliEd25519PublicKey = defaultEd25519PublicKey[:]
 	conf.grpcLeaderPath = ""
 	conf.grpcIpAddressWithoutPort = "0.0.0.0"
-	conf.kcpPath = "127.0.0.1:7000"
+	conf.kcpPathWithoutPort = "127.0.0.1"
 	conf.grpcClusterPort = 40000 // yes, warhammer 40k!!!!
 
 	// port
@@ -132,17 +147,12 @@ func (conf *Configuration) Initialize() {
 
 	// path that should be used when redirecting to this node in kcp
 	if s := os.Getenv("NODE_KCP_PATH"); s != "" {
-		conf.kcpPath = s
+		conf.kcpPathWithoutPort = s
 	}
 }
 
 func (conf *Configuration) GetKcpPathToThisGateway() string {
-	return conf.kcpPath
-}
-
-// returns the server address to be used in this server
-func (conf *Configuration) GetServerAddress() string {
-	return fmt.Sprintf("0.0.0.0:%d", conf.port)
+	return fmt.Sprintf("%s:%d", conf.kcpPathWithoutPort, conf.port)
 }
 
 func (conf *Configuration) GetBufferSize() int {
