@@ -13,34 +13,33 @@ type RedirectPacket struct {
 	Subscription *results.ClusterUserSubscriptionResult
 }
 
-func (packet RedirectPacket) GetPacketType() enums.PacketType {
+func (packet *RedirectPacket) GetPacketType() enums.PacketType {
 	return enums.REDIRECT
 }
 
-func (packet RedirectPacket) GetPacketHeader() packets.PacketHeader {
+func (packet *RedirectPacket) GetPacketHeader() packets.PacketHeader {
 	return nil
 }
 
-func (packet RedirectPacket) GetPayload() string {
+func (packet *RedirectPacket) GetPayload() string {
 	return ""
 }
 
-func (packet RedirectPacket) Marshal() ([]byte, errorinfo.GatewayError) {
-	output := make([]byte, 0, 1+8+8+len(packet.Subscription.Challenge))
-
-	bytes := helpers.ConvertInt64Into8Bytes(packet.UserId)
+func (packet *RedirectPacket) Marshal() ([]byte, errorinfo.GatewayError) {
+	output := make([]byte, 0, 1+8+32+len(packet.Subscription.GatewayPath))
 
 	output[0] = byte(enums.REDIRECT)
-	copy(output[1:], bytes[:])
 
-	bytes = helpers.ConvertInt64Into8Bytes(packet.Subscription.SubscriptionID)
-	copy(output[9:], bytes[:])
-	copy(output[17:], packet.Subscription.Challenge)
+	bytes := helpers.ConvertInt64Into8Bytes(packet.Subscription.SubscriptionID)
+
+	copy(output[1:], bytes[:])                                 // subscription id
+	copy(output[9:], packet.Subscription.Challenge)            // challenge
+	copy(output[41:], []byte(packet.Subscription.GatewayPath)) // gateway path
 
 	return output, nil
 }
 
-func (packet RedirectPacket) GetSender() int64 {
+func (packet *RedirectPacket) GetSender() int64 {
 	return packet.UserId
 }
 

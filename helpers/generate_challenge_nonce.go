@@ -7,8 +7,8 @@ import (
 )
 
 func GenerateChallengeNonce() ([]byte, errorinfo.GatewayError) {
-	const challengeSize = 32
-	challenge := make([]byte, challengeSize)
+	const challengeSize = 32 // the challenge has 32 bytes
+	challenge := make([]byte, 0, challengeSize)
 	_, err := rand.Read(challenge)
 
 	if err != nil {
