@@ -50,12 +50,19 @@ func (layer *Layer2Follower) stopCluster() errorinfo.GatewayError {
 
 // ==== handler from layer 1 ====
 func (layer *Layer2Follower) handlePacketFromLayer1(packet packets.Packet) errorinfo.GatewayError {
+	const filePath string = "/controllers/layer_2_follower.go"
+
 	switch packet.GetPacketType() {
 	case enums.REDIRECTED:
 		return layer.handleREDIRECTEDpacket(packet)
 	}
 
-	return nil
+	return layererrors.CreateProtocolFlowViolation_LayerError(
+		filePath,
+		60,
+		enums.LAYER_2,
+		enums.INCORRECT_PACKET_KIND,
+	)
 }
 
 // ==== handler from layer 3
@@ -93,7 +100,7 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 		}
 
 		// this connection is unauthorized!!!
-		layer.closeSessionInLayer1(redirectedPacket.SubscriptionID, enums.CloseReasonConnectionUnauthorized)
+		layer.closeSession(redirectedPacket.SubscriptionID, enums.CloseReasonConnectionUnauthorized)
 
 		return auth_errors.CreateConnectionUnauthorizedError(
 			filePath,

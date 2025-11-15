@@ -6,6 +6,6 @@ Dockerfile*
 LICENSE
 README.md
 vendor/
-parsers/packets.txt
+packets.txt
 clustering/grpc/
 expansion-gateway*

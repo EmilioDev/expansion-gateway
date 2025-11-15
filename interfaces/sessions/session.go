@@ -12,5 +12,6 @@ type Session interface {
 	SetState(enums.ConnectionState)
 	GetProtocolVersion() enums.ProtocolVersion
 	GetClientType() enums.ClientType
+	GetClientVersion() byte
 	GetEncryption() enums.EncryptionAlgorithm
 }
