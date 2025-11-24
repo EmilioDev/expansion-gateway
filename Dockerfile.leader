@@ -46,11 +46,15 @@ COPY go.sum ./go.sum
 RUN ["go", "mod", "download"]
 RUN ["go", "mod", "verify"]
 
-# we proceed to copy the source code
-COPY ./ .
+# we copy and generate the .proto files and the script that generates the clustering objects
+COPY compile_proto.sh ./compile_proto.sh
+COPY ./proto/ ./proto
 
 # we generate the grpc code files
 RUN ["./compile_proto.sh"]
+
+# we proceed to copy the source code
+COPY ./ .
 
 # we compile it, and it's ready, this stage is finished
 RUN ["go", "build"]
