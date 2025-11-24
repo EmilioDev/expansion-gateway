@@ -58,37 +58,47 @@ protocol version 1:
               - session id: it tells you which session id this connection tries to resume. 8 bytes [only present if session resume flag is true]
 
       challenge:
-        a bbbbbbbbbb...
+        a bbbbbbbbbb cccccccccccc
 
         where:
           - a: the type of packet(challenge in this case). 1 byte [required]
-          - b: the challenge the client has to solve in order to prove identity. it has 32 bytes [required]
+          - b: the challenge the client has to solve in order to prove identity, he must sign it using 
+                ED25519 and send back that sign. it has 32 bytes [required]
+          - c: server ephemeral key. this field only appears if the client has requested to use payload encryption. it has 32 bytes
 
         notes:
-          - this packet has a fixed length of 33 bytes (packet type + challenge)
+          - this packet has only two possible lengths: 33 bytes (packet type + challenge) and 
+              65 bytes (packet type + challenge + server ephemeral key)
 
       connect:
-        a bbbbbbbbbbb...
+        a bbbbbbbbbbb cccccccccccc
 
         where:
           - a: packet type, the type of packet(connect in this case). 1 byte [required]
-          - b: the signature the client sent in response to the challenge. it has 64 bytes [required]
+          - b: the signature the client sent in response to the challenge, using ED25519. it has 64 bytes [required]
+          - c: client ephemeral key. it will only appear if the client has reuested to use payload 
+                encryption in the hello packet. it has 32 bytes
 
         notes:
-          - this packet has a fixed length of 65 bytes
-          - In the case of a redirect, also remember the redirected packet, which is the packet the client 
-          will use to connect to the new server, and the redirected_ok packet, which is the packet the server 
-          will use to provide the data to the client in the case of a valid redirect.
+          - this packet has only two possible length of 65 and 97 bytes
+          - in the case of a redirect, also remember the redirected packet, which is the packet the client 
+              will use to connect to the new server, and the redirected_ok packet, which is the packet the server 
+              will use to provide the data to the client in the case of a valid redirect.
+          - the client, when generating the signature, it has to sign the challenge it received in the challenge 
+              packet and its own key. this is don in order to prove that the key really came from him, preventing
+              a MITM attack.
+          - the signature must sign be the sign of challenge+client ephemeral key, in that order
 
       redirect:
-        a bbbbbbbb cccccccccccccc dddddddddddd
+        a bbbbbbbb cccccccccccccc dddd eeeeeeeeee
 
         where:
           - a: packet type (redirect in this case). 1 byte [required]
           - b: subscription id. the client has to send this to the new gateway in order to know
-          that he is the one that has been redirected. it has 8 bytes [required]
+                that he is the one that has been redirected. it has 8 bytes [required]
           - c: the challenge the client has to sign in order to prove its identity. it has 32 bytes. [required]
-          - d: a string that contains the path to the new gateway. it has a variable length [required]
+          - d: path length. it has the size of the string that tells the path to the new gateway. it has 4 bytes [required]
+          - e: a string that contains the path to the new gateway. it has the length specified in path length [required]
 
       disconnect:
         a b

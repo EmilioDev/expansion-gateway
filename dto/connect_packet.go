@@ -8,8 +8,9 @@ import (
 )
 
 type ConnectPacket struct {
-	OwnerID   int64    // the id of the session of the user that owns this packet
-	Signature [64]byte // the signature of the data the user is going to send
+	OwnerID            int64     // the id of the session of the user that owns this packet
+	Signature          [64]byte  // the signature of the data the user is going to send
+	ClientEphemeralKey *[32]byte // the ephemeral key of this client
 }
 
 func (packet ConnectPacket) GetPacketType() enums.PacketType {
@@ -39,9 +40,18 @@ func (packet ConnectPacket) GetSender() int64 {
 	return packet.OwnerID
 }
 
-func CreateConnectPacket(ownerId int64, signature [64]byte) *ConnectPacket {
+func CreateConnectPacketWithoutEphemeralKey(ownerId int64, signature [64]byte) *ConnectPacket {
 	return &ConnectPacket{
-		OwnerID:   ownerId,
-		Signature: signature,
+		OwnerID:            ownerId,
+		Signature:          signature,
+		ClientEphemeralKey: nil,
+	}
+}
+
+func CreateConnectPacketWithEphemeralKey(ownerId int64, signature [64]byte, key [32]byte) *ConnectPacket {
+	return &ConnectPacket{
+		OwnerID:            ownerId,
+		Signature:          signature,
+		ClientEphemeralKey: &key,
 	}
 }

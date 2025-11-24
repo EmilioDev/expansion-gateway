@@ -2,20 +2,18 @@ package helpers
 
 import (
 	"crypto/rand"
-	"math/big"
-	"time"
+	"encoding/binary"
 )
 
+// generates a random int64. if the generation fails, it returns 0 (zero)
 func GenerateRandomInt64() int64 {
-	nBig, err := rand.Int(rand.Reader, big.NewInt(27))
+	var buffer [8]byte
+	var result int64 = 0
 
-	if err != nil {
-		return 0
+	if _, err := rand.Read(buffer[:]); err == nil {
+		raw := binary.LittleEndian.Uint64(buffer[:])
+		result = int64(raw)
 	}
 
-	if time.Now().Unix()%2 == 0 {
-		return nBig.Int64()
-	}
-
-	return nBig.Int64() * -1
+	return result
 }

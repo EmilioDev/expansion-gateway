@@ -6,9 +6,9 @@ type ConnectionUnauthorizedError struct {
 	AuthError
 }
 
-func (err ConnectionUnauthorizedError) SetStackTrace(stackTrace []string) errorinfo.GatewayError {
+func (err *ConnectionUnauthorizedError) SetStackTrace(stackTrace []string) errorinfo.GatewayError {
 	err.StackTrace = stackTrace
-	return &err
+	return err
 }
 
 func CreateConnectionUnauthorizedError(file string, index uint16, connectionID int64) ConnectionUnauthorizedError {

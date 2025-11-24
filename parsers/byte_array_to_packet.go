@@ -14,7 +14,7 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 	byteArraySize := len(*byteArray)
 	const filePath string = "/parsers/byte_array_to_packet.go"
 
-	if byteArraySize < 3 {
+	if byteArraySize < 2 {
 		return nil, errors.CreateInvalidPacketSizeError(filePath, 11, enums.NONE, byteArraySize)
 	}
 

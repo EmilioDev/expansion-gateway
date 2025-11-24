@@ -13,15 +13,23 @@ func ToConnectPacket(byteArray *[]byte, connectionID int64) (packets.Packet, err
 	packetSize := len(*byteArray)
 	const filePath string = "/parsers/byteArrayToPacket/to_connect_packet.go"
 
-	if packetSize != 65 {
-		return nil, errors.CreateInvalidPacketSizeError(filePath, 16, enums.CONNECT, packetSize)
-	}
-
 	var signature [64]byte
-	copy(signature[:], (*byteArray)[1:65])
 
-	return &dto.ConnectPacket{
-		OwnerID:   connectionID,
-		Signature: signature,
-	}, nil
+	switch packetSize {
+	case 65:
+		copy(signature[:], (*byteArray)[1:])
+
+		return dto.CreateConnectPacketWithoutEphemeralKey(connectionID, signature), nil
+
+	case 97:
+		copy(signature[:], (*byteArray)[1:65])
+
+		var ephemeralKey [32]byte
+		copy(ephemeralKey[:], (*byteArray)[65:])
+
+		return dto.CreateConnectPacketWithEphemeralKey(connectionID, signature, ephemeralKey), nil
+
+	default:
+		return nil, errors.CreateInvalidPacketSizeError(filePath, 32, enums.CONNECT, packetSize)
+	}
 }

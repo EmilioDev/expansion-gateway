@@ -4,6 +4,7 @@ package sessions
 import (
 	"expansion-gateway/clustering/grpc"
 	"expansion-gateway/config"
+	"expansion-gateway/crypto"
 	"expansion-gateway/dto"
 	"expansion-gateway/enums"
 	"sync"
@@ -18,7 +19,6 @@ type Layer2Session struct {
 	protocolVersion    atomic.Int32
 	clientType         atomic.Int32
 	clientVersion      atomic.Uint32 // byte stored as uint32
-	encryption         atomic.Int32
 	sessionResume      atomic.Bool
 
 	// protected by their own mutex
@@ -37,10 +37,9 @@ type Layer2Session struct {
 	// configuration object
 	configuration *config.Configuration
 
-	// encryption key
-	encryptionKey []byte
-
 	redirectPacket atomic.Pointer[dto.RedirectPacket]
+
+	Encryption *crypto.CryptoSessionModule // cryptographics module
 }
 
 // GenerateNewLayer2Session creates a new Layer2Session with default values
@@ -54,6 +53,7 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		timeoutTracker:   NewTimeoutTracker(config.GetSessionTimeout()),
 		configuration:    config,
 		redirectPacket:   atomic.Pointer[dto.RedirectPacket]{},
+		Encryption:       crypto.CreateNewCryptoSessionModule(),
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))
@@ -61,7 +61,6 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 	s.protocolVersion.Store(int32(enums.V1))
 	s.clientType.Store(int32(enums.GODOT_CLIENT))
 	s.clientVersion.Store(uint32(0))
-	s.encryption.Store(int32(enums.NoEncryptionAlgorithm))
 	s.sessionResume.Store(false)
 
 	return s
@@ -203,11 +202,11 @@ func (s *Layer2Session) SetClientVersion(v byte) {
 
 // ===== Encryption =====
 func (s *Layer2Session) GetEncryption() enums.EncryptionAlgorithm {
-	return enums.EncryptionAlgorithm(s.encryption.Load())
+	return s.Encryption.GetEncryptionAlgorithm()
 }
 
 func (s *Layer2Session) SetEncryption(e enums.EncryptionAlgorithm) {
-	s.encryption.Store(int32(e))
+	s.Encryption.SetEncryptionAlgorithm(e)
 }
 
 // ===== Session Resume =====
@@ -242,17 +241,17 @@ func (s *Layer2Session) ExtendTimeoutInterval() {
 
 // updates the session states from a hello packet
 func (session *Layer2Session) UpdateFromHelloPacket(packet *dto.HelloPacket) {
-	// lock packet to avoid race conditions
+	// lock session to avoid race conditions
 	session.bulkUpdaterMutex.Lock()
 	defer session.bulkUpdaterMutex.Unlock()
 
 	// encryption used in the payload
 	if !packet.VariableHeader.PayloadEncrypted {
-		session.encryption.Store(int32(enums.NoEncryptionAlgorithm))
+		session.Encryption.SetEncryptionAlgorithm(enums.NoEncryptionAlgorithm)
 	} else if enums.IsValidEncryptionAlgorythm(byte(packet.VariableHeader.Encryption)) {
-		session.encryption.Store(int32(packet.VariableHeader.Encryption))
+		session.Encryption.SetEncryptionAlgorithm(packet.VariableHeader.Encryption)
 	} else {
-		session.encryption.Store(int32(enums.NoEncryptionAlgorithm))
+		session.Encryption.SetEncryptionAlgorithm(enums.NoEncryptionAlgorithm)
 	}
 
 	// session resume
@@ -284,7 +283,7 @@ func (session *Layer2Session) UpdateFromFollowerSubscription(subscription *Layer
 
 	session.clientType.Store(int32(subscription.ClientType))
 	session.clientVersion.Store(uint32(subscription.ClientVersion))
-	session.encryption.Store(int32(subscription.Encryption))
+	session.Encryption.SetEncryptionAlgorithm(subscription.Encryption)
 	session.sessionResume.Store(subscription.SessionResume)
 	session.protocolVersion.Store(int32(subscription.ProtocolVersion))
 	session.requestedSessionId.Store(subscription.RequestedSessionID)
@@ -322,7 +321,7 @@ func (s *Layer2Session) GetFrame() *SessionFrame {
 		ClientVersion:      s.GetClientVersion(),
 		Encryption:         s.GetEncryption(),
 		SessionResume:      s.GetSessionResume(),
-		EncryptionKey:      s.encryptionKey,
+		EncryptionKey:      s.Encryption.GetKey(),
 		Challenge:          s.challenge,
 	}
 }

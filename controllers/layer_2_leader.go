@@ -9,6 +9,7 @@ import (
 	"expansion-gateway/dto/clusters"
 	dtoSessions "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
+	"expansion-gateway/errors/auth"
 	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/errorinfo"
@@ -113,11 +114,32 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 			publicKey := session.GetEd25519PublicKey()
 			challenge := session.GetChallenge()
 
-			if ok := ed25519.Verify(publicKey, challenge, packet.Signature[:]); ok {
-				layer.authorizeSession(sessionId) // handled here
+			if session.Encryption.GetEncryptionAlgorithm() == enums.NoEncryptionAlgorithm {
+				if ed25519.Verify(publicKey, challenge, packet.Signature[:]) {
+					layer.authorizeSession(sessionId) // handled here
+				} else {
+					// this client is unauthorized!!!
+					layer.closeSession(sessionId, enums.CloseReasonFailedAuthentication) // handled
+				}
 			} else {
-				// this client is unauthorized!!!
-				layer.closeSession(sessionId, enums.CloseReasonFailedAuthentication) // handled
+				if packet.ClientEphemeralKey == nil {
+					return auth.GenerateConnectWithEphemeralKeyMissing(filePath, 125, sessionId)
+				}
+
+				clientEphemeralKey := *packet.ClientEphemeralKey
+
+				msg := make([]byte, 0, len(clientEphemeralKey)+len(challenge))
+				msg = append(msg, challenge...)
+				msg = append(msg, clientEphemeralKey[:]...)
+
+				if ed25519.Verify(publicKey, msg, packet.Signature[:]) {
+					layer.authorizeSession(sessionId)                        // session authorized
+					session.Encryption.GenerateNewKey(clientEphemeralKey[:]) // final password generated
+					session.Encryption.DeleteEphemeralKeys()                 // ephemeral keys deleted
+				} else {
+					// this client is unauthorized!!!
+					layer.closeSession(sessionId, enums.CloseReasonFailedAuthentication) // handled
+				}
 			}
 
 			return nil
@@ -170,7 +192,25 @@ func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.
 				sessionStored.SetChallenge(&newChallenge)
 			}
 
-			newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
+			//newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
+			var newChallengePacket *dto.ChallengePacket = nil
+
+			if sessionStored.GetEncryption() == enums.NoEncryptionAlgorithm {
+				// we generate the challenge with the challenge only
+				newChallengePacket = dto.GenerateChallengePacket(clientId, &newChallenge)
+			} else {
+				// we generate the ephemeral keys and check if everything is ok so far
+				if err := sessionStored.Encryption.GenerateEphemeralKeys(); err != nil {
+					return err
+				}
+
+				// we generate the challenge packet with the challenge and the server ephemeral public key
+				newChallengePacket = dto.GenerateChallengePacketWithServerPublicEphemeralKey(
+					clientId,
+					&newChallenge,
+					sessionStored.Encryption.GetEphemeralKeys().GetPublicKey(),
+				)
+			}
 
 			if err = layer.layer1.SendPacket(newChallengePacket); err == nil {
 				if connectionState == enums.HELLO_RECEIVED {

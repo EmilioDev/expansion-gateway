@@ -9,8 +9,9 @@ import (
 
 type ChallengePacket struct {
 	BaseHeader
-	UserId    int64
-	Challenge []byte
+	UserId                   int64
+	Challenge                []byte
+	ServerPublicEphemeralKey *[32]byte
 }
 
 func (packet ChallengePacket) GetPacketType() enums.PacketType {
@@ -26,10 +27,21 @@ func (packet ChallengePacket) GetPayload() string {
 }
 
 func (packet ChallengePacket) Marshal() ([]byte, errorinfo.GatewayError) {
-	output := make([]byte, 1+len(packet.Challenge))
+	var output []byte = nil
 
-	output[0] = byte(enums.CHALLENGE)
-	copy(output[1:], packet.Challenge)
+	if packet.ServerPublicEphemeralKey == nil {
+		output = make([]byte, 1+32) // the challenge always has 32 bytes length
+
+		output[0] = byte(enums.CHALLENGE)  // we mark the stream as a CHALLENGE packet
+		copy(output[1:], packet.Challenge) // we set the challenge and that's it
+	} else {
+		output = make([]byte, 1+32+32)                // the challenge always has 32 bytes length and the key also has 32 bytes length
+		serverKey := *packet.ServerPublicEphemeralKey // the server public key, it has 32 bytes length
+
+		output[0] = byte(enums.CHALLENGE)    // we mark the stream as a CHALLENGE packet
+		copy(output[1:33], packet.Challenge) // we set the challenge
+		copy(output[33:], serverKey[:])      // and we set the server public ephemeral key, and done.
+	}
 
 	return output, nil
 }
@@ -40,8 +52,18 @@ func (packet ChallengePacket) GetSender() int64 {
 
 func GenerateChallengePacket(userId int64, challenge *[]byte) *ChallengePacket {
 	return &ChallengePacket{
-		BaseHeader{},
-		userId,
-		*challenge,
+		BaseHeader:               BaseHeader{},
+		UserId:                   userId,
+		Challenge:                *challenge,
+		ServerPublicEphemeralKey: nil,
+	}
+}
+
+func GenerateChallengePacketWithServerPublicEphemeralKey(userId int64, challenge *[]byte, serverPublicKey [32]byte) *ChallengePacket {
+	return &ChallengePacket{
+		BaseHeader:               BaseHeader{},
+		UserId:                   userId,
+		Challenge:                *challenge,
+		ServerPublicEphemeralKey: &serverPublicKey,
 	}
 }
