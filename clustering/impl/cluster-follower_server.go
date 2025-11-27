@@ -4,6 +4,7 @@ package impl
 import (
 	"context"
 	"expansion-gateway/clustering/grpc"
+	"expansion-gateway/helpers"
 
 	rpc "google.golang.org/grpc"
 
@@ -68,8 +69,10 @@ func (server *ClusterFollower_Server) RequestAcceptClient(context context.Contex
 			return &grpc.RedirectionRequestResult{
 				Success: true,
 				Body: &grpc.SubscriptionRequestResultBody{
-					SubscriptionID: res.SubscriptionID,
-					Challenge:      res.Challenge,
+					SubscriptionID:           res.SubscriptionID,
+					Challenge:                helpers.ConvertByteArrayIntoInt32Array(res.Challenge),
+					ServerPublicEphemeralKey: helpers.ConvertByteArrayIntoInt32Array(res.SessionEphemeralKey),
+					NewGatewayAddress:        res.GatewayPath,
 				},
 			}, nil
 		} else {

@@ -12,7 +12,6 @@ import (
 	"expansion-gateway/interfaces/errorinfo"
 	"flag"
 	"fmt"
-	"math"
 	"time"
 
 	google "google.golang.org/grpc"
@@ -129,23 +128,10 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 		}
 
 		response := clusters.ClusterUserSubscriptionResult{
-			Challenge:      []byte{},
-			SubscriptionID: res.Body.SubscriptionID,
-			GatewayPath:    res.Body.NewGatewayAddress,
-		}
-
-		iterations := len(res.Body.Challenge)
-
-		for x := 0; x < iterations; x++ {
-			toConvert := res.Body.Challenge[x]
-
-			if toConvert < 0 {
-				toConvert = 0
-			} else if toConvert > math.MaxUint8 {
-				toConvert = 255
-			}
-
-			response.Challenge = append(response.Challenge, byte(toConvert))
+			Challenge:           helpers.ConvertInt32ArrayIntoByteArray(res.Body.Challenge),
+			SubscriptionID:      res.Body.SubscriptionID,
+			GatewayPath:         res.Body.NewGatewayAddress,
+			SessionEphemeralKey: helpers.ConvertInt32ArrayIntoByteArray(res.Body.ServerPublicEphemeralKey),
 		}
 
 		return &response, nil

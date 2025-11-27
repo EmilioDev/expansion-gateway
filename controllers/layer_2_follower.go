@@ -33,10 +33,27 @@ func (layer *Layer2Follower) GenerateUserSubscription(
 	subscription := sessions.GenerateLayer2FollowerSubscription(userID, requestedSessionID, clientType, clientVersion, encryption, protocolVersion, sessionResume)
 	subscriptionId := layer.subscriptions.Add(subscription)
 
+	if encryption != enums.NoEncryptionAlgorithm { // this branch is for handling payload encryption pass
+		if err := subscription.GenerateEphemeralKeyPair(); err != nil {
+			return nil, err
+		}
+
+		ephemeralPublicKey := subscription.EphemeralKeyPair.GetPublicKey()
+
+		return &results.ClustersSubscriptionRequestBody{
+			SubscriptionID:      subscriptionId,
+			Challenge:           subscription.Challenge,
+			GatewayPath:         layer.configuration.GetKcpPathToThisGateway(),
+			SessionEphemeralKey: ephemeralPublicKey[:],
+		}, nil
+	}
+
+	// enviar la llave publica efimera de la subscripcion como un []int32
 	return &results.ClustersSubscriptionRequestBody{
-		SubscriptionID: subscriptionId,
-		Challenge:      subscription.GetChallengeAsInt32Array(),
-		GatewayPath:    layer.configuration.GetKcpPathToThisGateway(),
+		SubscriptionID:      subscriptionId,
+		Challenge:           subscription.Challenge,
+		GatewayPath:         layer.configuration.GetKcpPathToThisGateway(),
+		SessionEphemeralKey: nil,
 	}, nil
 }
 

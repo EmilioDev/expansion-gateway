@@ -2,8 +2,11 @@
 package sessions
 
 import (
+	"expansion-gateway/crypto"
+	"expansion-gateway/dto/cryptodto"
 	"expansion-gateway/enums"
 	"expansion-gateway/helpers"
+	"expansion-gateway/interfaces/errorinfo"
 )
 
 type Layer2FollowerSubscription struct {
@@ -15,6 +18,7 @@ type Layer2FollowerSubscription struct {
 	Encryption         enums.EncryptionAlgorithm
 	ProtocolVersion    enums.ProtocolVersion
 	SessionResume      bool
+	EphemeralKeyPair   *cryptodto.EphemeralKeysDto
 }
 
 func (subscription *Layer2FollowerSubscription) GetChallengeAsInt32Array() []int32 {
@@ -25,6 +29,17 @@ func (subscription *Layer2FollowerSubscription) GetChallengeAsInt32Array() []int
 	}
 
 	return result
+}
+
+// Generates a new ephemeral key pair
+func (subscription *Layer2FollowerSubscription) GenerateEphemeralKeyPair() errorinfo.GatewayError {
+	if priv, pub, err := crypto.GenerateX25519KeyPair(); err == nil {
+		subscription.EphemeralKeyPair = cryptodto.GenerateNewEphemeralKeysDto(priv, pub)
+	} else {
+		return err
+	}
+
+	return nil
 }
 
 func GenerateLayer2FollowerSubscription(

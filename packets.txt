@@ -90,7 +90,7 @@ protocol version 1:
           - the signature must sign be the sign of challenge+client ephemeral key, in that order
 
       redirect:
-        a bbbbbbbb cccccccccccccc dddd eeeeeeeeee
+        a bbbbbbbb cccccccccccccc dddd eeeeeeeeee fffffffff
 
         where:
           - a: packet type (redirect in this case). 1 byte [required]
@@ -99,6 +99,8 @@ protocol version 1:
           - c: the challenge the client has to sign in order to prove its identity. it has 32 bytes. [required]
           - d: path length. it has the size of the string that tells the path to the new gateway. it has 4 bytes [required]
           - e: a string that contains the path to the new gateway. it has the length specified in path length [required]
+          - f: follower public ephemeral key. it only appears if the client had requested to use any payload 
+                encryption. it has 32 bytes
 
       disconnect:
         a b
@@ -130,9 +132,10 @@ protocol version 1:
           - m: client version. it only appear next to client version flag. it tells you the version of the client. 1 byte
 
       redirected:
-        a bbbbbbbb cccccccccccccc
+        a bbbbbbbb cccccccccccccc ddddddddddd
 
         where:
           - a: packet type (redirected in this case). 1 byte [required]
           - b: subscription id. the id used to acces the subscription in the new server. it has 8 bytes [required]
           - c: the signature used to prove its identity. it has 64 bytes [required]
+          - d: client ephemeral public key. it only appears if the client has requested to use any payload encryption. it has 32 bytes

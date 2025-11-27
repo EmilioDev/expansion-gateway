@@ -26,20 +26,37 @@ func (packet *RedirectPacket) GetPayload() string {
 }
 
 func (packet *RedirectPacket) Marshal() ([]byte, errorinfo.GatewayError) {
-	// easy to put 45 here, but this way you know where each number comes from
-	output := make([]byte, 0, 1+8+32+4+len(packet.Subscription.GatewayPath))
-
-	output[0] = byte(enums.REDIRECT)
-
 	bytes := helpers.ConvertInt64Into8Bytes(packet.Subscription.SubscriptionID)
-	pathSize := helpers.ConvertInt32Into4Bytes(int32(len(packet.Subscription.GatewayPath)))
+	pathSizeAsInt32 := int32(len(packet.Subscription.GatewayPath))
+	pathSize := helpers.ConvertInt32Into4Bytes(pathSizeAsInt32)
+	pathLimit := 45 + int(pathSizeAsInt32)
 
-	copy(output[1:], bytes[:])                                 // subscription id
-	copy(output[9:], packet.Subscription.Challenge)            // challenge
-	copy(output[41:], pathSize[:])                             // gateway path length
-	copy(output[45:], []byte(packet.Subscription.GatewayPath)) // gateway path
+	if len(packet.Subscription.SessionEphemeralKey) == 32 { // if you have public password
+		// easy to put 77 here, but this way you know where each number comes from
+		output := make([]byte, 0, 1+8+32+4+len(packet.Subscription.GatewayPath)+32)
 
-	return output, nil
+		output[0] = byte(enums.REDIRECT)
+
+		copy(output[1:9], bytes[:])                                         // subscription id
+		copy(output[9:41], packet.Subscription.Challenge)                   // challenge
+		copy(output[41:45], pathSize[:])                                    // gateway path length
+		copy(output[45:pathLimit], []byte(packet.Subscription.GatewayPath)) // gateway path
+		copy(output[pathLimit:], packet.Subscription.SessionEphemeralKey)   // session ephemeral public key
+
+		return output, nil
+	} else { // if not
+		// easy to put 45 here, but this way you know where each number comes from
+		output := make([]byte, 0, 1+8+32+4+len(packet.Subscription.GatewayPath))
+
+		output[0] = byte(enums.REDIRECT)
+
+		copy(output[1:9], bytes[:])                                         // subscription id
+		copy(output[9:41], packet.Subscription.Challenge)                   // challenge
+		copy(output[41:45], pathSize[:])                                    // gateway path length
+		copy(output[45:pathLimit], []byte(packet.Subscription.GatewayPath)) // gateway path
+
+		return output, nil
+	}
 }
 
 func (packet *RedirectPacket) GetSender() int64 {

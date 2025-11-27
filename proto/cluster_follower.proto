@@ -37,7 +37,8 @@ message RedirectionRequestResult {
 message SubscriptionRequestResultBody {
     int64 subscriptionID = 1;
     repeated int32 challenge = 2;
-    string newGatewayAddress = 3;
+    repeated int32 serverPublicEphemeralKey = 3;
+    string newGatewayAddress = 4;
 }
 
 message Empty {}

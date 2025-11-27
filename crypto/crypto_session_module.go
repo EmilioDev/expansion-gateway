@@ -120,6 +120,11 @@ func (module *CryptoSessionModule) GenerateEphemeralKeys() errorinfo.GatewayErro
 	return nil
 }
 
+// sets the ephemeral keys from an external source
+func (module *CryptoSessionModule) SetEphemeralKeys(keys *cryptodto.EphemeralKeysDto) {
+	module.ephemeralKeys.Store(keys)
+}
+
 // ===== Encrypt / Decrypt
 
 // encrypt a string using the values stored in the module
