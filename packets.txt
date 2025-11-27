@@ -139,3 +139,6 @@ protocol version 1:
           - b: subscription id. the id used to acces the subscription in the new server. it has 8 bytes [required]
           - c: the signature used to prove its identity. it has 64 bytes [required]
           - d: client ephemeral public key. it only appears if the client has requested to use any payload encryption. it has 32 bytes
+
+        notes:
+          - this packet has only two possible sizes: 73 bytes(without public key), and 105 bytes(with public key)
