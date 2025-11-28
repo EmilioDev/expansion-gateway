@@ -9,6 +9,7 @@ import (
 	"expansion-gateway/interfaces/packets"
 )
 
+// creates a hello packet from a byte stream
 func ToHelloPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errorinfo.GatewayError) {
 	byteArraySize := len(*byteArray)
 	const filePath string = "/parsers/byteArrayToPacket/to_hello_packet.go"

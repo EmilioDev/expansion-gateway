@@ -27,6 +27,9 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 	case enums.CONNECT:
 		return bytearraytopacket.ToConnectPacket(byteArray, connectionID)
 
+	case enums.REDIRECTED:
+		return bytearraytopacket.ToRedirectedPacket(byteArray, connectionID)
+
 	default:
 		return nil, errors.CreateInvalidPacketError(filePath, 22)
 	}

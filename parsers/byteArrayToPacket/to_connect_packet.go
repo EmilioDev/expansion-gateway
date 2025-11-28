@@ -9,6 +9,7 @@ import (
 	"expansion-gateway/interfaces/packets"
 )
 
+// creates a connect packet from a byte stream
 func ToConnectPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errorinfo.GatewayError) {
 	packetSize := len(*byteArray)
 	const filePath string = "/parsers/byteArrayToPacket/to_connect_packet.go"
