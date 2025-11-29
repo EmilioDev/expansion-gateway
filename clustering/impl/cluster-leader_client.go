@@ -42,7 +42,7 @@ func (client *ClusterLeader_Client) Connect(source string) errorinfo.GatewayErro
 
 	return helpers.WithStackTrace(clustererrors.CreateConnectionToServerFailedError(
 		"/clustering/impl/cluster-leader_client.go",
-		34,
+		43,
 		source,
 		enums.ClusterLeader,
 		false), 0)
@@ -65,11 +65,11 @@ func (client *ClusterLeader_Client) isReady() errorinfo.GatewayError {
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
 
 	if client.client == nil {
-		return clustererrors.CreateClientNotReadyError(filePath, 55, enums.ClusterLeader)
+		return clustererrors.CreateClientNotReadyError(filePath, 67, enums.ClusterLeader)
 	}
 
 	if client.connection == nil {
-		return clustererrors.CreateClientNotReadyError(filePath, 59, enums.ClusterLeader)
+		return clustererrors.CreateClientNotReadyError(filePath, 71, enums.ClusterLeader)
 	}
 
 	return nil
@@ -93,11 +93,11 @@ func (client *ClusterLeader_Client) Subscribe(grpcCurrentNodePath string) (*dto.
 				HealthyTimeout: res.SubscriptionBody.HealthyTimeout,
 			}, nil
 		} else {
-			return nil, clustererrors.CreateNoPayloadError(filePath, 87, enums.ClusterLeader, false)
+			return nil, clustererrors.CreateNoPayloadError(filePath, 96, enums.ClusterLeader, false)
 		}
 	}
 
-	return nil, clustererrors.CreateOperationFailedError(filePath, 91, enums.ClusterLeader, false)
+	return nil, clustererrors.CreateOperationFailedError(filePath, 100, enums.ClusterLeader, false)
 }
 
 func (client *ClusterLeader_Client) Unsubscribe(serverId int64) errorinfo.GatewayError {
@@ -115,7 +115,7 @@ func (client *ClusterLeader_Client) Unsubscribe(serverId int64) errorinfo.Gatewa
 		}
 	}
 
-	return clustererrors.CreateOperationFailedError(filePath, 109, enums.ClusterLeader, false)
+	return clustererrors.CreateOperationFailedError(filePath, 120, enums.ClusterFollower, false)
 }
 
 func (client *ClusterLeader_Client) HealthCheck(serverId,
@@ -147,5 +147,23 @@ func (client *ClusterLeader_Client) HealthCheck(serverId,
 		}
 	}
 
-	return clustererrors.CreateOperationFailedError(filePath, 138, enums.ClusterLeader, false)
+	return clustererrors.CreateOperationFailedError(filePath, 152, enums.ClusterFollower, false)
+}
+
+func (client *ClusterLeader_Client) InformUserIsRedirected(userID int64) errorinfo.GatewayError {
+	if err := client.isReady(); err != nil {
+		return err
+	}
+
+	const filePath string = "/clustering/impl/cluster-leader_client.go"
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	if _, err := client.client.UserIsRedirected(ctx, &grpc.UserRedirectedData{
+		UserID: userID,
+	}); err == nil {
+		return nil
+	}
+
+	return clustererrors.CreateOperationFailedError(filePath, 170, enums.ClusterFollower, false)
 }

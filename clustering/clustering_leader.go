@@ -17,6 +17,7 @@ import (
 type ClusteringLeader struct {
 	ClusterNode                                                                 // base
 	Clients     *structs.SessionsDictionary[*clusters.ClusterFollowerContainer] // clients
+	thisGateway layers.Layer2Leader                                             // reference to the inner gateway
 }
 
 func (cluster *ClusteringLeader) IsLeader() bool {
@@ -113,7 +114,7 @@ func (cluster *ClusteringLeader) close() {
 }
 
 func (cluster *ClusteringLeader) markUserAsRedirected(userId int64) {
-	//
+	cluster.thisGateway.MarkUserAsRedirected(userId)
 }
 
 // creates a new cluster server

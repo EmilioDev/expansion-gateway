@@ -283,10 +283,14 @@ func (session *Layer2Session) UpdateFromFollowerSubscription(subscription *Layer
 
 	session.clientType.Store(int32(subscription.ClientType))
 	session.clientVersion.Store(uint32(subscription.ClientVersion))
-	session.Encryption.SetEncryptionAlgorithm(subscription.Encryption)
+
 	session.sessionResume.Store(subscription.SessionResume)
 	session.protocolVersion.Store(int32(subscription.ProtocolVersion))
 	session.requestedSessionId.Store(subscription.RequestedSessionID)
+
+	// encryption
+	session.Encryption.SetEncryptionAlgorithm(subscription.Encryption)
+	session.Encryption.SetEphemeralKeys(subscription.EphemeralKeyPair)
 }
 
 // gets the key for the client check

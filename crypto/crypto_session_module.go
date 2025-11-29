@@ -55,7 +55,7 @@ func (module *CryptoSessionModule) GetKey() []byte {
 }
 
 // generate a new key or password and stores it
-func (module *CryptoSessionModule) GenerateNewKey(clientEphemeralPubKey []byte) errorinfo.GatewayError {
+func (module *CryptoSessionModule) GenerateNewKey(clientEphemeralPubKey [32]byte) errorinfo.GatewayError {
 	ephemeralKeys := module.ephemeralKeys.Load()
 	const filePath string = "/crypto/crypto_session_module.go"
 
@@ -65,19 +65,19 @@ func (module *CryptoSessionModule) GenerateNewKey(clientEphemeralPubKey []byte) 
 
 	serverPrivateKey := ephemeralKeys.GetPrivateKey()
 
-	if sharedSecret, err := curve25519.X25519(serverPrivateKey[:], clientEphemeralPubKey); err == nil {
+	if sharedSecret, err := curve25519.X25519(serverPrivateKey[:], clientEphemeralPubKey[:]); err == nil {
 		// --- Derive final session key via HKDF-SHA256 ---
 		keyName := fmt.Sprintf(
 			"key-identifier-%d.%d.%d",
 			helpers.GenerateRandomInt64(),
 			helpers.GenerateRandomInt64(),
 			helpers.GenerateRandomInt64())
-		h := hkdf.New(sha256.New, sharedSecret, nil, []byte(keyName))
 
+		h := hkdf.New(sha256.New, sharedSecret, nil, []byte(keyName))
 		sessionKey := make([]byte, 32)
 
 		if _, err2 := io.ReadFull(h, sessionKey); err2 != nil {
-			return cryptoerror.CreateHKDFfailedError(filePath, 75)
+			return cryptoerror.CreateHKDFfailedError(filePath, 79)
 		}
 
 		// there you have it, the final key, securely generated

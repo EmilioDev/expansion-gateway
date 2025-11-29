@@ -95,7 +95,8 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 	const filePath string = "/controllers/layer_2_follower.go"
 
 	if redirectedPacket, isRedirected := packet.(*dto.RedirectedPacket); isRedirected {
-		if subscription, hasSubscription := layer.subscriptions.GetExists(redirectedPacket.SubscriptionID); hasSubscription {
+		subscriptionId := redirectedPacket.SubscriptionID
+		if subscription, hasSubscription := layer.subscriptions.GetExists(subscriptionId); hasSubscription {
 			var key *[]byte = nil
 
 			if subscription.ClientType == enums.GODOT_CLIENT {
@@ -104,15 +105,42 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 				key = layer.configuration.GetCliEd25519PublicKey()
 			}
 
-			if ed25519.Verify(*key, subscription.Challenge, redirectedPacket.Signature[:]) {
-				newSession := sessions.GenerateNewLayer2Session(layer.configuration)
-				newSession.UpdateFromFollowerSubscription(subscription)
-				layer.subscriptions.Delete(redirectedPacket.SubscriptionID)
+			if subscription.Encryption == enums.NoEncryptionAlgorithm {
+				if ed25519.Verify(*key, subscription.Challenge, redirectedPacket.Signature[:]) {
+					newSession := sessions.GenerateNewLayer2Session(layer.configuration)
+					newSession.UpdateFromFollowerSubscription(subscription)
+					layer.subscriptions.Delete(subscriptionId)
 
-				sessionId := layer.sessions.Add(newSession)
-				layer.approveSession(sessionId)
+					sessionId := layer.sessions.Add(newSession)
+					layer.approveSession(sessionId)
 
-				return nil
+					layer.clusterServer.InformClientConnected(subscription.UserId)
+
+					return nil
+				}
+			} else {
+				clientEphemeralKey := [32]byte{}
+				msg := make([]byte, 0, 32+len(subscription.Challenge))
+
+				copy(clientEphemeralKey[:], redirectedPacket.ClientPublicEphemeralKey)
+				msg = append(msg, subscription.Challenge...)
+				msg = append(msg, clientEphemeralKey[:]...)
+
+				if ed25519.Verify(*key, msg, redirectedPacket.Signature[:]) {
+					newSession := sessions.GenerateNewLayer2Session(layer.configuration)
+					newSession.UpdateFromFollowerSubscription(subscription)
+					layer.subscriptions.Delete(subscriptionId)
+
+					sessionId := layer.sessions.Add(newSession)
+					layer.approveSession(sessionId)
+
+					newSession.Encryption.GenerateNewKey(clientEphemeralKey)
+					newSession.Encryption.DeleteEphemeralKeys()
+
+					layer.clusterServer.InformClientConnected(subscription.UserId)
+
+					return nil
+				}
 			}
 		}
 

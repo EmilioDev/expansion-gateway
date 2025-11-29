@@ -25,8 +25,15 @@ type ClusteringFollower struct {
 	failedConsecutiveschecks int                        // the number of consecutives health checks that had failed
 }
 
+// ==== public methods ====
+
+// informs that this is a follower member
 func (cluster *ClusteringFollower) IsLeader() bool {
 	return false
+}
+
+func (cluster *ClusteringFollower) InformClientConnected(clientId int64) errorinfo.GatewayError {
+	return cluster.leader.InformUserIsRedirected(clientId)
 }
 
 // ==== init & close callbacks
