@@ -8,9 +8,9 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/clustererrors"
 	"expansion-gateway/helpers"
+	"expansion-gateway/helpers/constants"
 	"expansion-gateway/interfaces/errorinfo"
 	"flag"
-	"time"
 
 	"expansion-gateway/clustering/grpc"
 
@@ -81,7 +81,7 @@ func (client *ClusterLeader_Client) Subscribe(grpcCurrentNodePath string) (*dto.
 	}
 
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
 	if res, err := client.client.Subscribe(ctx, &grpc.FollowerSubscriptionData{
@@ -106,7 +106,7 @@ func (client *ClusterLeader_Client) Unsubscribe(serverId int64) errorinfo.Gatewa
 	}
 
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
 	if res, err := client.client.Unsubscribe(ctx, &grpc.FollowerUnsubscriptionData{ServerID: serverId}); err == nil {
@@ -129,7 +129,7 @@ func (client *ClusterLeader_Client) HealthCheck(serverId,
 	}
 
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
 	if res, err := client.client.HealthCheck(ctx,
@@ -156,7 +156,7 @@ func (client *ClusterLeader_Client) InformUserIsRedirected(userID int64) errorin
 	}
 
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
 	if _, err := client.client.UserIsRedirected(ctx, &grpc.UserRedirectedData{

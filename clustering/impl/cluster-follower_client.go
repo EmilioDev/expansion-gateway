@@ -9,10 +9,10 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/clustererrors"
 	"expansion-gateway/helpers"
+	"expansion-gateway/helpers/constants"
 	"expansion-gateway/interfaces/errorinfo"
 	"flag"
 	"fmt"
-	"time"
 
 	google "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -63,7 +63,7 @@ func (c *ClusterFollower_Client) Disconnect() errorinfo.GatewayError {
 }
 
 func (c *ClusterFollower_Client) DropClient() (bool, errorinfo.GatewayError) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 	const filePath string = "/clustering/impl/cluster-leader_client.go"
 
@@ -97,7 +97,7 @@ func (c *ClusterFollower_Client) CheckIfFollowerIsOnline() (bool, errorinfo.Gate
 	}
 
 	const filePath string = "/clustering/impl/cluster-follower_client.go"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
 	if res, err := c.client.CheckIfFollowerIsOnline(ctx, &grpc.Empty{}); err == nil {
@@ -116,7 +116,7 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 	}
 
 	const filePath string = "/clustering/impl/cluster-follower_client.go"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
 	if res, err := c.client.RequestAcceptClient(ctx, userFrame.ToSubscriptionRequestData(userID)); err == nil {
@@ -149,7 +149,7 @@ func (c *ClusterFollower_Client) HasThisSession(sessionID int64) (bool, errorinf
 	}
 
 	const filePath string = "/clustering/impl/cluster-follower_client.go"
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
 	if res, err := c.client.HasSession(ctx, &grpc.FollowerSessionID{SessionID: sessionID}); err == nil {
