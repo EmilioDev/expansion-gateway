@@ -8,6 +8,7 @@ import (
 	"expansion-gateway/dto/processes"
 	"expansion-gateway/enums"
 	"expansion-gateway/helpers"
+	"expansion-gateway/helpers/constants"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
 	"fmt"
@@ -52,59 +53,69 @@ func (cluster *ClusteringFollower) initCallback() {
 		log.Fatalf("the follower with path of %s did not started", cluster.grpcCurrentServerPath)
 	}
 
-	// we attempt subscription
-	if res, err := cluster.leader.Subscribe(cluster.grpcCurrentServerPath); err == nil {
-		cluster.sessionsTimeout = res.HealthyTimeout
-		cluster.memberID = res.ServerID
+	var res *results.ClusterMemberSubscriptionResult = nil
+	var err errorinfo.GatewayError = nil
 
-		// subcription ok, we start the update loop setting
-		period := time.Duration(cluster.sessionsTimeout/2) * time.Second
-		ticker := time.NewTicker(period)
-		defer ticker.Stop()
+	for attempt := range constants.CONNECTION_ATTEMPT_MAX_NUMBER {
+		if res, err = cluster.leader.Subscribe(cluster.grpcCurrentServerPath); err == nil {
+			break
+		}
 
-		cluster.failedConsecutiveschecks = 0
-		pid := int32(os.Getpid())
+		fmt.Printf("connection attempt %d to cluster leader failed. %d attempts remaining. attempting in a few seconds...\n", attempt+1, constants.CONNECTION_ATTEMPT_MAX_NUMBER-attempt-1)
+		time.Sleep(constants.CLUSTER_MEMBER_INTERVAL_BETWEEN_CONNECTIONS)
+	}
 
-		fmt.Printf("follower %d running\n", cluster.memberID)
+	if err != nil {
+		log.Fatalf("the cluster leader rejected subscription of a follower with path of %s", cluster.grpcCurrentServerPath)
+	}
 
-		// and we have the tick loop here
-		for range ticker.C {
-			if !cluster.isWorking.Load() {
-				return
-			}
+	cluster.sessionsTimeout = res.HealthyTimeout
+	cluster.memberID = res.ServerID
 
-			processData, _ := helpers.GetResourceUsageOfProcess(pid)
+	// subcription ok, we start the update loop setting
+	period := time.Duration(cluster.sessionsTimeout/2) * time.Second
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
 
-			if processData == nil { // preventing nil reference panic
-				processData = &processes.ProcessData{
-					RAMusage: 0,
-					CPUusage: 0,
-				}
-			}
+	cluster.failedConsecutiveschecks = 0
+	pid := int32(os.Getpid())
 
-			// we send the health check to the leader
-			if err := cluster.leader.HealthCheck(
-				cluster.memberID,
-				cluster.MessagesCounter.Load(),
-				cluster.epoch.Load(),
-				cluster.thisGateway.GetActiveSessions(),
-				processData,
-				true,
-			); err == nil {
-				cluster.failedConsecutiveschecks = 0
-			} else {
-				cluster.failedConsecutiveschecks++
+	fmt.Printf("follower %d running\n", cluster.memberID)
 
-				// if we reach the consecutive 10 failed health checks, we collapse
-				if cluster.failedConsecutiveschecks >= 10 {
-					cluster.Stop()
-					log.Fatalf("cluster follower at %s has reached the 10 consecutives failed health checks", cluster.grpcCurrentServerPath)
-				}
+	// and we have the tick loop here
+	for range ticker.C {
+		if !cluster.isWorking.Load() {
+			return
+		}
+
+		processData, _ := helpers.GetResourceUsageOfProcess(pid)
+
+		if processData == nil { // preventing nil reference panic
+			processData = &processes.ProcessData{
+				RAMusage: 0,
+				CPUusage: 0,
 			}
 		}
-	} else {
-		// the subscription has failed, we notify and then exit
-		log.Fatalf("the cluster leader rejected subscription of a follower with path of %s", cluster.grpcCurrentServerPath)
+
+		// we send the health check to the leader
+		if err := cluster.leader.HealthCheck(
+			cluster.memberID,
+			cluster.MessagesCounter.Load(),
+			cluster.epoch.Load(),
+			cluster.thisGateway.GetActiveSessions(),
+			processData,
+			true,
+		); err == nil {
+			cluster.failedConsecutiveschecks = 0
+		} else {
+			cluster.failedConsecutiveschecks++
+
+			// if we reach the consecutive 10 failed health checks, we collapse
+			if cluster.failedConsecutiveschecks >= constants.CONNECTION_ATTEMPT_MAX_NUMBER {
+				cluster.Stop()
+				log.Fatalf("cluster follower at %s has reached the 10 consecutives failed health checks", cluster.grpcCurrentServerPath)
+			}
+		}
 	}
 }
 
