@@ -166,7 +166,11 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 				return
 			}
 
-			if err := layer.layer1PacketHandler(packet); err != nil {
+			if packet == nil {
+				continue
+			} else if packet.GetPacketType() == enums.DISCONNECT {
+				layer.closeSession(packet.GetSender(), enums.CloseReasonManual)
+			} else if err := layer.layer1PacketHandler(packet); err != nil {
 				sessionToClose := packet.GetSender()
 
 				switch err.GetErrorCode() {

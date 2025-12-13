@@ -69,10 +69,13 @@ func (layer *KcpAsLayer1) Start() errorinfo.GatewayError {
 
 	layer.startOnce.Do(func() {
 		var serverPath string = layer.configuration.GetKcpPathToThisGateway()
+		var universalPath string = layer.configuration.GetUniversalKcpPathToThisGateway()
 
-		if listener, err := kcp.ListenWithOptions(serverPath, nil, 10, 3); err == nil {
+		if listener, err := kcp.ListenWithOptions(universalPath, nil, 10, 3); err == nil {
 			layer.working.Store(true)
-			fmt.Printf("server running on %s\n", serverPath)
+			if layer.configuration.AreWeClusterLeaders() {
+				fmt.Printf("server running on %s\n", serverPath)
+			}
 
 			layer.listener = listener
 
@@ -183,9 +186,7 @@ func (layer *KcpAsLayer1) process() {
 
 func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 	defer layer.wg.Done()
-
 	buffer := make([]byte, layer.configuration.GetBufferSize())
-	timeoutDuration := time.Duration(layer.configuration.GetConnectionTimeout()) * time.Second
 
 	for {
 		if session, sessionExists := layer.sessions.GetExists(connectionId); sessionExists {
@@ -196,10 +197,6 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 			if !layer.IsWorking() {
 				session.Close()
 				return
-			}
-
-			if err := session.SetReadDeadline(time.Now().Add(timeoutDuration)); err != nil {
-				continue
 			}
 
 			if dataLen, err := session.Read(buffer); err == nil {
@@ -213,9 +210,16 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					// it is just a timeout, ignore it
 					continue
+				} else if err.Error() == "io: read/write on closed pipe" {
+					layer.outputDispatcher.Dispatch(dto.CreateDisconnectPacket(
+						connectionId,
+						enums.CLIENT_DISCONNECTED,
+					))
+
+					return
 				}
 
-				fmt.Printf("error in session %d: %s\n", connectionId, err.Error())
+				fmt.Printf("kcp layer error in session %d: %s\n", connectionId, err.Error())
 				layer.outputDispatcher.Dispatch(dto.CreateInvalidPacket(connectionId))
 			}
 		} else {

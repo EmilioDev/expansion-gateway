@@ -155,6 +155,10 @@ func (conf *Configuration) GetKcpPathToThisGateway() string {
 	return fmt.Sprintf("%s:%d", conf.kcpPathWithoutPort, conf.port)
 }
 
+func (conf *Configuration) GetUniversalKcpPathToThisGateway() string {
+	return fmt.Sprintf("0.0.0.0:%d", conf.port)
+}
+
 func (conf *Configuration) GetBufferSize() int {
 	return conf.bufferSize
 }

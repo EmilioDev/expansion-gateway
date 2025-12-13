@@ -53,7 +53,7 @@ protocol version 1:
               - protocol version: the version of the protocol this client uses. 1 byte [required]
               - client type: if this is the godot client, the cli tool, etc. 1 byte [required]
               - client version: version of this client. 1 byte
-              - flags: for now, the last bit tells you if this is a session resume, and the previous bit tells you if this client is going to encrypt their payloads or not. 1 byte [required]
+              - flags: for now, the last bit tells you if the payload is going to be encrypted or not, and the previous bit tells you if this connection is a session resume or not. 1 byte [required]
               - encryption: it tells you which encryption algorythm is going to be used in the payload. 1 byte [only present if encryptation flag is true]
               - session id: it tells you which session id this connection tries to resume. 8 bytes [only present if session resume flag is true]
 
@@ -143,3 +143,10 @@ protocol version 1:
 
         notes:
           - this packet has only two possible sizes: 73 bytes(without public key), and 105 bytes(with public key)
+
+      disconnect:
+        a b
+
+        where:
+          - a: packet type (disconnect in this case). 1 byte [required]
+          - b: disconnect reason. 1 byte
