@@ -16,7 +16,6 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	kcp "github.com/xtaci/kcp-go/v5"
 )
@@ -122,28 +121,25 @@ func (layer *KcpAsLayer1) ConfigureDumbLayer(outputDispatcher dispatchers.Dispat
 }
 
 func (layer *KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayError {
-	const filePath string = "/input/kcp_handler/kcp_as_layer1.go"
+	const filePath string = "/input/kcp_handler/kcp_as_layer1.go" // this is for error handling
 
-	if !layer.IsWorking() {
+	if !layer.IsWorking() { // this if is for checking if we're still up
 		return layererrors.CreateLayerClosed_LayerError(filePath, 126, enums.LAYER_1)
 	}
 
-	sessionId := packet.GetSender()
+	sessionId := packet.GetSender() // this will give you the id you need to find the *kcp.UDPSession
 
-	session, exists := layer.sessions.GetExists(sessionId)
-
-	if !exists {
-		return layererrors.CreateSessionNotRegistered_LayerError(filePath, 136, enums.LAYER_1, sessionId)
-	}
-
-	if byteArray, err := packet.Marshal(); err == nil {
-		session.SetWriteDeadline(time.Now().Add(2 * time.Second)) // timeout
-
-		if _, err := session.Write(byteArray); err != nil {
-			return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 143, err), 0)
+	if session, exists := layer.sessions.GetExists(sessionId); exists && session != nil { // here you have the session of type *kcp.UDPSession
+		if byteArray, err := packet.Marshal(); err == nil { // here you have the byte array you will send
+			if _, err := session.Write(byteArray); err != nil { // and then you send the data here
+				fmt.Printf("output -> len: %d ; packet: %v (fail)\n", len(byteArray), byteArray) // this is just to see if ok or not
+				return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 143, err), 0)
+			} else { // this if is only for debug purposes, it will be removed
+				fmt.Printf("output -> len: %d ; packet: %v (ok)\n", len(byteArray), byteArray) // this is just to see if ok or not
+			}
+		} else {
+			return err
 		}
-	} else {
-		return err
 	}
 
 	return nil
@@ -152,7 +148,10 @@ func (layer *KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayErr
 func (layer *KcpAsLayer1) CloseSession(sessionId int64) errorinfo.GatewayError {
 	if connection, exists := layer.sessions.GetExists(sessionId); exists {
 		layer.sessions.Delete(sessionId)
-		connection.Close()
+
+		if connection != nil {
+			connection.Close()
+		}
 	}
 
 	return nil
@@ -176,6 +175,12 @@ func (layer *KcpAsLayer1) listenFromInputChannel() {
 func (layer *KcpAsLayer1) process() {
 	for layer.IsWorking() {
 		if session, err := layer.listener.AcceptKCP(); err == nil {
+			session.SetACKNoDelay(true)
+			session.SetStreamMode(true)
+			session.SetWindowSize(256, 256)
+			session.SetNoDelay(1, 10, 2, 1)
+			session.SetMtu(1200)
+
 			connectionId := layer.sessions.Add(session)
 
 			layer.wg.Add(1)
@@ -211,6 +216,7 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 					// it is just a timeout, ignore it
 					continue
 				} else if err.Error() == "io: read/write on closed pipe" {
+					// the connection is closed
 					layer.outputDispatcher.Dispatch(dto.CreateDisconnectPacket(
 						connectionId,
 						enums.CLIENT_DISCONNECTED,

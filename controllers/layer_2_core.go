@@ -206,10 +206,12 @@ func (layer *Layer2Core) initializeLayer3Listeners() {
 
 // invalid packet handler
 func (layer *Layer2Core) closeSession(sessionId int64, reason enums.SessionCloseReason) {
-	layer.closeSessionInLayer1(sessionId, reason)
-	layer.closeSessionInLayer3(sessionId, reason)
+	if layer.sessions.Exists(sessionId) {
+		layer.sessions.Delete(sessionId)
 
-	layer.sessions.Delete(sessionId)
+		layer.closeSessionInLayer1(sessionId, reason)
+		layer.closeSessionInLayer3(sessionId, reason)
+	}
 }
 
 func (layer *Layer2Core) closeSessionInLayer1(sessionId int64, reason enums.SessionCloseReason) {

@@ -143,10 +143,3 @@ protocol version 1:
 
         notes:
           - this packet has only two possible sizes: 73 bytes(without public key), and 105 bytes(with public key)
-
-      disconnect:
-        a b
-
-        where:
-          - a: packet type (disconnect in this case). 1 byte [required]
-          - b: disconnect reason. 1 byte
