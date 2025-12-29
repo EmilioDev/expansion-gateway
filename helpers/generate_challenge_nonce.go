@@ -7,11 +7,11 @@ import (
 )
 
 func GenerateChallengeNonce() ([]byte, errorinfo.GatewayError) {
-	const challengeSize = 32 // the challenge has 32 bytes
-	challenge := make([]byte, 0, challengeSize)
-	_, err := rand.Read(challenge)
+	const challengeSize int = 32 // the challenge has 32 bytes, this is for better understanding of code
+	challenge := [challengeSize]byte{}
 
-	if err != nil {
+	// we fill the bytes
+	if _, err := rand.Read(challenge[:]); err != nil {
 		return nil, cryptoerror.CreateErrorWhileGeneratingChallenge(
 			"/helpers/generate_challenge_nonce.go",
 			14,
@@ -19,7 +19,7 @@ func GenerateChallengeNonce() ([]byte, errorinfo.GatewayError) {
 		)
 	}
 
-	return challenge, nil
+	return challenge[:], nil
 }
 
 func GetDefaultChallengeNonce() []byte {

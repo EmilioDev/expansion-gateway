@@ -50,6 +50,7 @@ func (packet ChallengePacket) GetSender() int64 {
 	return packet.UserId
 }
 
+// generates a challenge without the the ephemeral key
 func GenerateChallengePacket(userId int64, challenge *[]byte) *ChallengePacket {
 	return &ChallengePacket{
 		BaseHeader:               BaseHeader{},
@@ -59,6 +60,7 @@ func GenerateChallengePacket(userId int64, challenge *[]byte) *ChallengePacket {
 	}
 }
 
+// generates a challenge with the the server ephemeral key
 func GenerateChallengePacketWithServerPublicEphemeralKey(userId int64, challenge *[]byte, serverPublicKey [32]byte) *ChallengePacket {
 	return &ChallengePacket{
 		BaseHeader:               BaseHeader{},

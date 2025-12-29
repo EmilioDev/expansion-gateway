@@ -240,7 +240,23 @@ func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.
 	// send the packet to the client, and store the nonce for later check
 	if newChallenge, err = helpers.GenerateChallengeNonce(); err == nil {
 		newSession.SetChallenge(&newChallenge)
-		newChallengePacket := dto.GenerateChallengePacket(clientId, &newChallenge)
+		var newChallengePacket *dto.ChallengePacket = nil
+
+		if newSession.Encryption.GetEncryptionAlgorithm() == enums.NoEncryptionAlgorithm {
+			newChallengePacket = dto.GenerateChallengePacket(clientId, &newChallenge)
+		} else {
+			// we generate the ephemeral keys and check if everything is ok so far
+			if err := newSession.Encryption.GenerateEphemeralKeys(); err != nil {
+				return err
+			}
+
+			// we generate the challenge packet with the challenge and the server ephemeral public key
+			newChallengePacket = dto.GenerateChallengePacketWithServerPublicEphemeralKey(
+				clientId,
+				&newChallenge,
+				newSession.Encryption.GetEphemeralKeys().GetPublicKey(),
+			)
+		}
 
 		if err2 := layer.layer1.SendPacket(newChallengePacket); err2 == nil {
 			newSession.SetState(enums.CHALLENGE_SENT)

@@ -132,10 +132,7 @@ func (layer *KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayErr
 	if session, exists := layer.sessions.GetExists(sessionId); exists && session != nil { // here you have the session of type *kcp.UDPSession
 		if byteArray, err := packet.Marshal(); err == nil { // here you have the byte array you will send
 			if _, err := session.Write(byteArray); err != nil { // and then you send the data here
-				fmt.Printf("output -> len: %d ; packet: %v (fail)\n", len(byteArray), byteArray) // this is just to see if ok or not
-				return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 143, err), 0)
-			} else { // this if is only for debug purposes, it will be removed
-				fmt.Printf("output -> len: %d ; packet: %v (ok)\n", len(byteArray), byteArray) // this is just to see if ok or not
+				return helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 134, err), 0) // if error on sending, this happen
 			}
 		} else {
 			return err
