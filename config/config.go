@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"expansion-gateway/helpers"
 	"fmt"
 	"math"
@@ -37,8 +38,8 @@ type Configuration struct {
 // CONNECTION_TIMEOUT: the timeout in seconds used by each kcp connection. default: 1
 // SESSION_TIMEOUT_SECONDS: the timeout each session has in layer 2 before being disconnected for inactivity. default: 30 seconds
 // SESSION_WATCHER_PERIOD_MS: the period between each check to find if any session is inactive. default: 1 second
-// CLI_AUTH_KEY: the cli auth key used to validate the cli app. default: [0-31]
-// GODOT_AUTH_KEY: the key used by the game to prove its identity. default: [0-31]
+// CLI_AUTH_KEY: the cli auth key used to validate the cli app. default: [cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=] (base64)
+// GODOT_AUTH_KEY: the key used by the game to prove its identity. default: [cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=] (base64)
 // CLUSTER_LEADER_GRPC: the path to the cluster leader of this cluster. default: empty
 // GRPC_SERVER_IP_PATH_WITHOUT_PORT: the ip, without the port, used by the grpc server of this cluster member. default: "0.0.0.0"
 // NODE_KCP_PATH: the ip, without the port, that should be used when redirecting to this cluster member. default: 127.0.0.1
@@ -47,7 +48,11 @@ type Configuration struct {
 func (conf *Configuration) Initialize() {
 	dotenv.Load()
 
-	defaultEd25519PublicKey := [32]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}
+	// private: 1ow4RLtCVL4jVjboEqrybjAhckAsiPtUkm9+H0sFZAxwqxMBTMGSO5RwgaIoEn5bqoAwVhj3fzdvebo60FCVPA==
+	// public: cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=
+
+	encodeKey, _ := base64.StdEncoding.DecodeString("cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=")
+	defaultEd25519PublicKey := [32]byte(encodeKey)
 
 	// defaults
 	conf.port = 7000
