@@ -38,8 +38,8 @@ type Configuration struct {
 // CONNECTION_TIMEOUT: the timeout in seconds used by each kcp connection. default: 1
 // SESSION_TIMEOUT_SECONDS: the timeout each session has in layer 2 before being disconnected for inactivity. default: 30 seconds
 // SESSION_WATCHER_PERIOD_MS: the period between each check to find if any session is inactive. default: 1 second
-// CLI_AUTH_KEY: the cli auth key used to validate the cli app. default: [cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=] (base64)
-// GODOT_AUTH_KEY: the key used by the game to prove its identity. default: [cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=] (base64)
+// CLI_AUTH_KEY: the cli auth key used to validate the cli app. default: [LKopGQQ6iytq9BywdlOfkQoIw0Kpny2xu8F1JXnDAb4=] (base64)
+// GODOT_AUTH_KEY: the key used by the game to prove its identity. default: [LKopGQQ6iytq9BywdlOfkQoIw0Kpny2xu8F1JXnDAb4=] (base64)
 // CLUSTER_LEADER_GRPC: the path to the cluster leader of this cluster. default: empty
 // GRPC_SERVER_IP_PATH_WITHOUT_PORT: the ip, without the port, used by the grpc server of this cluster member. default: "0.0.0.0"
 // NODE_KCP_PATH: the ip, without the port, that should be used when redirecting to this cluster member. default: 127.0.0.1
@@ -48,10 +48,10 @@ type Configuration struct {
 func (conf *Configuration) Initialize() {
 	dotenv.Load()
 
-	// private: 1ow4RLtCVL4jVjboEqrybjAhckAsiPtUkm9+H0sFZAxwqxMBTMGSO5RwgaIoEn5bqoAwVhj3fzdvebo60FCVPA==
-	// public: cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=
+	// private: [160 135 112 15 214 124 209 247 138 189 68 26 191 207 215 199 197 87 113 188 237 31 70 77 193 125 135 96 26 250 146 92]
+	// public: LKopGQQ6iytq9BywdlOfkQoIw0Kpny2xu8F1JXnDAb4=
 
-	encodeKey, _ := base64.StdEncoding.DecodeString("cKsTAUzBkjuUcIGiKBJ+W6qAMFYY9383b3m6OtBQlTw=")
+	encodeKey, _ := base64.StdEncoding.DecodeString("LKopGQQ6iytq9BywdlOfkQoIw0Kpny2xu8F1JXnDAb4=")
 	defaultEd25519PublicKey := [32]byte(encodeKey)
 
 	// defaults
