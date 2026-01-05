@@ -30,17 +30,17 @@ func (packet ChallengePacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	var output []byte = nil
 
 	if packet.ServerPublicEphemeralKey == nil {
-		output = make([]byte, 1+32) // the challenge always has 32 bytes length
+		output = make([]byte, 0, 1+32) // the challenge always has 32 bytes length
 
-		output[0] = byte(enums.CHALLENGE)  // we mark the stream as a CHALLENGE packet
-		copy(output[1:], packet.Challenge) // we set the challenge and that's it
+		output = append(output, byte(enums.CHALLENGE)) // we mark the stream as a CHALLENGE packet
+		output = append(output, packet.Challenge...)   // we set the challenge and that's it
 	} else {
-		output = make([]byte, 1+32+32)                // the challenge always has 32 bytes length and the key also has 32 bytes length
+		output = make([]byte, 0, 1+32+32)             // the challenge always has 32 bytes length and the key also has 32 bytes length
 		serverKey := *packet.ServerPublicEphemeralKey // the server public key, it has 32 bytes length
 
-		output[0] = byte(enums.CHALLENGE)    // we mark the stream as a CHALLENGE packet
-		copy(output[1:33], packet.Challenge) // we set the challenge
-		copy(output[33:], serverKey[:])      // and we set the server public ephemeral key, and done.
+		output = append(output, byte(enums.CHALLENGE)) // we mark the stream as a CHALLENGE packet
+		output = append(output, packet.Challenge...)   // we set the challenge
+		output = append(output, serverKey[:]...)       // and we set the server public ephemeral key, and done.
 	}
 
 	return output, nil

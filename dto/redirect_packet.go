@@ -29,31 +29,30 @@ func (packet *RedirectPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	bytes := helpers.ConvertInt64Into8Bytes(packet.Subscription.SubscriptionID)
 	pathSizeAsInt32 := int32(len(packet.Subscription.GatewayPath))
 	pathSize := helpers.ConvertInt32Into4Bytes(pathSizeAsInt32)
-	pathLimit := 45 + int(pathSizeAsInt32)
 
 	if len(packet.Subscription.SessionEphemeralKey) == 32 { // if you have public password
 		// easy to put 77 here, but this way you know where each number comes from
 		output := make([]byte, 0, 1+8+32+4+len(packet.Subscription.GatewayPath)+32)
 
-		output[0] = byte(enums.REDIRECT)
+		output = append(output, byte(enums.REDIRECT))
 
-		copy(output[1:9], bytes[:])                                         // subscription id
-		copy(output[9:41], packet.Subscription.Challenge)                   // challenge
-		copy(output[41:45], pathSize[:])                                    // gateway path length
-		copy(output[45:pathLimit], []byte(packet.Subscription.GatewayPath)) // gateway path
-		copy(output[pathLimit:], packet.Subscription.SessionEphemeralKey)   // session ephemeral public key
+		output = append(output, bytes[:]...)
+		output = append(output, packet.Subscription.Challenge...)
+		output = append(output, pathSize[:]...)
+		output = append(output, []byte(packet.Subscription.GatewayPath)...)
+		output = append(output, packet.Subscription.SessionEphemeralKey...)
 
 		return output, nil
 	} else { // if not
 		// easy to put 45 here, but this way you know where each number comes from
 		output := make([]byte, 0, 1+8+32+4+len(packet.Subscription.GatewayPath))
 
-		output[0] = byte(enums.REDIRECT)
+		output = append(output, byte(enums.REDIRECT))
 
-		copy(output[1:9], bytes[:])                                         // subscription id
-		copy(output[9:41], packet.Subscription.Challenge)                   // challenge
-		copy(output[41:45], pathSize[:])                                    // gateway path length
-		copy(output[45:pathLimit], []byte(packet.Subscription.GatewayPath)) // gateway path
+		output = append(output, bytes[:]...)
+		output = append(output, packet.Subscription.Challenge...)
+		output = append(output, pathSize[:]...)
+		output = append(output, []byte(packet.Subscription.GatewayPath)...)
 
 		return output, nil
 	}

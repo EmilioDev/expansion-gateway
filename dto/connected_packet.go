@@ -54,50 +54,39 @@ func (packet *ConnectedPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 
 	sessionId := helpers.ConvertInt64Into8Bytes(packet.sessionID)
 
-	output[0] = byte(enums.CONNECTED) // packet id
-	copy(output[1:], sessionId[:])    // session id
-
-	size := 9
+	output = append(output, byte(enums.CONNECTED))
+	output = append(output, sessionId[:]...) // session id
 
 	// encryption
 	if packet.encryption != enums.NoEncryptionAlgorithm {
-		output[9] = 25
-		output[10] = byte(packet.encryption)
+		output = append(output, 25)
+		output = append(output, byte(packet.encryption))
 
 		keySize := helpers.ConvertInt32Into4Bytes(int32(len(packet.encryptionKey)))
 
-		copy(output[11:], keySize[:])
-		copy(output[15:], packet.encryptionKey)
-		size += 6 + len(packet.encryptionKey)
+		output = append(output, keySize[:]...)
+		output = append(output, packet.encryptionKey...)
 	}
 
-	// timeout
-	output[size] = 13
+	output = append(output, 13)
 
 	timeout := helpers.ConvertInt64Into8Bytes(packet.sessionTimeout)
-	copy(output[size+1:], timeout[:])
-
-	size += 9
+	// copy(output[size+1:], timeout[:])
+	output = append(output, timeout[:]...)
 
 	// protocol version
-	output[size] = 48
-	output[size+1] = byte(packet.protocolVersion)
-
-	size += 2
+	output = append(output, 48)
+	output = append(output, byte(packet.protocolVersion))
 
 	// client type
-	output[size] = 31
-	output[size+1] = byte(packet.clientType)
-
-	size += 2
+	output = append(output, 31)
+	output = append(output, byte(packet.clientType))
 
 	// client version
-	output[size] = 82
-	output[size+1] = packet.clientVersion
+	output = append(output, 82)
+	output = append(output, packet.clientVersion)
 
-	size += 2
-
-	return output[:size], nil
+	return output, nil
 }
 
 func (packet *ConnectedPacket) GetSender() int64 {
