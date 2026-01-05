@@ -113,15 +113,13 @@ protocol version 1:
           - this packet has a fixed length of 2 bytes
 
       connected:
-        a bbbbbbbb c ch dddd eeeeeeee f gggggggg h i j k l m
+        a bbbbbbbb c ch f gggggggg h i j k l m
 
         where:
           - a: packet type (connected in this case) 1 byte [required]
           - b: session id. 8 bytes [required]
           - c(25): encryption key flag. if present, value must be 25. 1 byte
           - ch: encryption algorithm. it appears only if encryption key flag is present. it tells you which algorithm is going to be used to encrypt payloads. it has 1 byte
-          - d: encryption key size. it only is present if the encryption key flag is present. it tells you how many bytes has the key. it has 4 bytes.
-          - e: encryption key. the key the client will use to encrypt payloads. it will accompany the encryption key size. it has the size specified in encryption
           - f(13): timeout flag. if present, value must be 13. 1 byte
           - g: timeout. it only appears if the timeout flag is present. it tells you the session timeout in milliseconds. it has 8 bytes
           - h(48): protocol version flag. if present, it must be 48. 1 byte

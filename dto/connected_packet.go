@@ -17,7 +17,6 @@ type ConnectedPacket struct {
 	clientType      enums.ClientType          // the kind of client this user is
 	clientVersion   byte                      // the version this client is using
 	encryption      enums.EncryptionAlgorithm // the encryption algorithm used in the payload
-	encryptionKey   []byte                    // the key used by the encryption algorithm
 }
 
 func CreateNewConnectedPacket(sessionId int64, session sessions.Session) *ConnectedPacket {
@@ -31,8 +30,6 @@ func CreateNewConnectedPacket(sessionId int64, session sessions.Session) *Connec
 		clientVersion:   session.GetClientVersion(),
 		encryption:      session.GetEncryption(),
 	}
-
-	answer.encryptionKey = []byte{}
 
 	return &answer
 }
@@ -50,7 +47,7 @@ func (packet *ConnectedPacket) GetPayload() string {
 }
 
 func (packet *ConnectedPacket) Marshal() ([]byte, errorinfo.GatewayError) {
-	output := make([]byte, 0, 1+8+2+4+len(packet.encryptionKey)+1+8+2+2+2)
+	output := make([]byte, 0, 1+8+2+4+1+8+2+2+2)
 
 	sessionId := helpers.ConvertInt64Into8Bytes(packet.sessionID)
 
@@ -61,17 +58,10 @@ func (packet *ConnectedPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	if packet.encryption != enums.NoEncryptionAlgorithm {
 		output = append(output, 25)
 		output = append(output, byte(packet.encryption))
-
-		keySize := helpers.ConvertInt32Into4Bytes(int32(len(packet.encryptionKey)))
-
-		output = append(output, keySize[:]...)
-		output = append(output, packet.encryptionKey...)
 	}
 
 	output = append(output, 13)
-
 	timeout := helpers.ConvertInt64Into8Bytes(packet.sessionTimeout)
-	// copy(output[size+1:], timeout[:])
 	output = append(output, timeout[:]...)
 
 	// protocol version
