@@ -14,7 +14,7 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 	byteArraySize := len(*byteArray)
 	const filePath string = "/parsers/byte_array_to_packet.go"
 
-	if byteArraySize < 2 {
+	if byteArraySize == 0 {
 		return nil, errors.CreateInvalidPacketSizeError(filePath, 11, enums.NONE, byteArraySize)
 	}
 
@@ -29,6 +29,9 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 
 	case enums.REDIRECTED:
 		return bytearraytopacket.ToRedirectedPacket(byteArray, connectionID)
+
+	case enums.DISCONNECT:
+		return bytearraytopacket.ToDisconnectPacket(byteArray, connectionID)
 
 	default:
 		return nil, errors.CreateInvalidPacketError(filePath, 22)

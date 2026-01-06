@@ -169,25 +169,15 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 			if packet == nil {
 				continue
 			} else if packet.GetPacketType() == enums.DISCONNECT {
-				layer.closeSession(packet.GetSender(), enums.CloseReasonManual)
+				if disconnectPacket, isDisconnect := packet.(*dto.DisconnectPacket); isDisconnect {
+					layer.closeSession(disconnectPacket.GetSender(), disconnectPacket.GetDisconnectReason())
+				} else {
+					layer.closeSession(packet.GetSender(), enums.CloseReasonClosedByGateway)
+				}
 			} else if err := layer.layer1PacketHandler(packet); err != nil {
 				sessionToClose := packet.GetSender()
 
-				switch err.GetErrorCode() {
-				case 13: // protocol violation
-					layer.closeSession(sessionToClose, enums.CloseReasonProtocolViolation)
-
-				case 8, 9, 10, 11, 12: // internal error
-					layer.closeSession(sessionToClose, enums.CloseReasonInternalError)
-
-				case 0, 1, 2, 3, 4, 5, 6: // packet error
-					layer.closeSession(sessionToClose, enums.CloseReasonInvalidPacket)
-
-				case 7: // external error
-					fallthrough
-				default:
-					layer.closeSession(sessionToClose, enums.CloseReasonUnknown)
-				}
+				layer.closeSession(sessionToClose, enums.ByteReasonToDisconnectReason(err.GetErrorCode()))
 			}
 
 		default:
@@ -205,7 +195,7 @@ func (layer *Layer2Core) initializeLayer3Listeners() {
 // ==== close ====
 
 // invalid packet handler
-func (layer *Layer2Core) closeSession(sessionId int64, reason enums.SessionCloseReason) {
+func (layer *Layer2Core) closeSession(sessionId int64, reason enums.DisconnectReason) {
 	if layer.sessions.Exists(sessionId) {
 		layer.sessions.Delete(sessionId)
 
@@ -214,7 +204,7 @@ func (layer *Layer2Core) closeSession(sessionId int64, reason enums.SessionClose
 	}
 }
 
-func (layer *Layer2Core) closeSessionInLayer1(sessionId int64, reason enums.SessionCloseReason) {
+func (layer *Layer2Core) closeSessionInLayer1(sessionId int64, reason enums.DisconnectReason) {
 	if layer.layer1 != nil {
 		// we need to send the disconnect packet first
 		// do not forget to add it!!!
@@ -222,7 +212,7 @@ func (layer *Layer2Core) closeSessionInLayer1(sessionId int64, reason enums.Sess
 	}
 }
 
-func (layer *Layer2Core) closeSessionInLayer3(sessionId int64, reason enums.SessionCloseReason) {
+func (layer *Layer2Core) closeSessionInLayer3(sessionId int64, reason enums.DisconnectReason) {
 	if layer.layer3 != nil {
 		// the same as in layer 1
 		layer.layer3.CloseSession(sessionId)

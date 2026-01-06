@@ -18,6 +18,10 @@ func CreateDisconnectPacket(sessionId int64, reason enums.DisconnectReason) *Dis
 	}
 }
 
+func (packet *DisconnectPacket) GetDisconnectReason() enums.DisconnectReason {
+	return packet.reason
+}
+
 func (packet *DisconnectPacket) GetPacketType() enums.PacketType {
 	return enums.DISCONNECT
 }

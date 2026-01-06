@@ -216,7 +216,7 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 					// the connection is closed
 					layer.outputDispatcher.Dispatch(dto.CreateDisconnectPacket(
 						connectionId,
-						enums.CLIENT_DISCONNECTED,
+						enums.CloseReasonConnectionLost,
 					))
 
 					return
