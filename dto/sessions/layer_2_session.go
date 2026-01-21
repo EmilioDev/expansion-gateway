@@ -20,6 +20,7 @@ type Layer2Session struct {
 	clientType         atomic.Int32
 	clientVersion      atomic.Uint32 // byte stored as uint32
 	sessionResume      atomic.Bool
+	requestedPing      atomic.Bool
 
 	// protected by their own mutex
 	challengeMu sync.RWMutex
@@ -54,6 +55,7 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		configuration:    config,
 		redirectPacket:   atomic.Pointer[dto.RedirectPacket]{},
 		Encryption:       crypto.CreateNewCryptoSessionModule(),
+		requestedPing:    atomic.Bool{},
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))
@@ -64,6 +66,15 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 	s.sessionResume.Store(false)
 
 	return s
+}
+
+// ===== Ping Packet =====
+func (s *Layer2Session) GetPingHasBeenRequested() bool {
+	return s.requestedPing.Load()
+}
+
+func (s *Layer2Session) SetPingHasBeenRequested(hasPingRequests bool) {
+	s.requestedPing.Store(hasPingRequests)
 }
 
 // ===== Redirect Packet =====

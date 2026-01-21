@@ -11,12 +11,7 @@ import (
 type BasicByteArrayToPacketParser struct{}
 
 func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]byte, connectionID int64) (packets.Packet, errorinfo.GatewayError) {
-	byteArraySize := len(*byteArray)
 	const filePath string = "/parsers/byte_array_to_packet.go"
-
-	if byteArraySize == 0 {
-		return nil, errors.CreateInvalidPacketSizeError(filePath, 11, enums.NONE, byteArraySize)
-	}
 
 	indexByte := (*byteArray)[0]
 
@@ -32,6 +27,12 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 
 	case enums.DISCONNECT:
 		return bytearraytopacket.ToDisconnectPacket(byteArray, connectionID)
+
+	case enums.PING:
+		return bytearraytopacket.ToPingPacket(byteArray, connectionID)
+
+	case enums.PINGACK:
+		return bytearraytopacket.ToPingAckPacket(byteArray, connectionID)
 
 	default:
 		return nil, errors.CreateInvalidPacketError(filePath, 22)

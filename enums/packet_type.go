@@ -9,11 +9,12 @@ const (
 	CONNECTED
 	REDIRECT
 	REDIRECTED
-	REDIRECTED_OK
-	SUBS
+	SUBSCRIBE
+	SUBACK
 	PUBLISH
+	PUBACK
 	PING
-	ACK
+	PINGACK
 	DISCONNECT
 	NONE
 )
@@ -38,20 +39,23 @@ func GetNameOfPacketType(packetType PacketType) string {
 	case REDIRECTED:
 		return "REDIRECTED"
 
-	case REDIRECTED_OK:
-		return "REDIRECTED_OK"
-
-	case SUBS:
+	case SUBSCRIBE:
 		return "SUBS"
+
+	case SUBACK:
+		return "SUBACK"
 
 	case PUBLISH:
 		return "PUBLISH"
 
+	case PUBACK:
+		return "PUBACK"
+
 	case PING:
 		return "PING"
 
-	case ACK:
-		return "ACK"
+	case PINGACK:
+		return "PINGACK"
 
 	case DISCONNECT:
 		return "DISCONNECT"

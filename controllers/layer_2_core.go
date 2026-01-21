@@ -168,16 +168,46 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 
 			if packet == nil {
 				continue
-			} else if packet.GetPacketType() == enums.DISCONNECT {
-				if disconnectPacket, isDisconnect := packet.(*dto.DisconnectPacket); isDisconnect {
-					layer.closeSession(disconnectPacket.GetSender(), disconnectPacket.GetDisconnectReason())
-				} else {
-					layer.closeSession(packet.GetSender(), enums.CloseReasonClosedByGateway)
-				}
-			} else if err := layer.layer1PacketHandler(packet); err != nil {
-				sessionToClose := packet.GetSender()
+			} else {
+				senderId := packet.GetSender()
 
-				layer.closeSession(sessionToClose, enums.ByteReasonToDisconnectReason(err.GetErrorCode()))
+				switch packet.GetPacketType() {
+				case enums.DISCONNECT:
+					if disconnectPacket, isDisconnect := packet.(*dto.DisconnectPacket); isDisconnect {
+						layer.closeSession(senderId, disconnectPacket.GetDisconnectReason())
+					} else {
+						layer.closeSession(senderId, enums.CloseReasonClosedByGateway)
+					}
+
+				case enums.PING:
+					if session, exists := layer.sessions.GetExists(senderId); exists {
+						if session.GetState() == enums.SESSION_CONNECTED {
+							session.RefreshActivity()
+							layer.layer1.SendPacket(dto.CreatePingACKpacket(senderId))
+						} else {
+							layer.closeSession(senderId, enums.CloseReasonProtocolViolation)
+						}
+					} else {
+						layer.closeSession(senderId, enums.CloseReasonConnectionUnauthorized)
+					}
+
+				case enums.PINGACK:
+					if session, exists := layer.sessions.GetExists(senderId); exists {
+						if session.GetPingHasBeenRequested() {
+							session.RefreshActivity()
+							session.SetPingHasBeenRequested(false)
+						} else {
+							layer.closeSession(senderId, enums.CloseReasonProtocolViolation)
+						}
+					} else {
+						layer.closeSession(senderId, enums.CloseReasonConnectionUnauthorized)
+					}
+
+				default:
+					if err := layer.layer1PacketHandler(packet); err != nil {
+						layer.closeSession(senderId, enums.ByteReasonToDisconnectReason(err.GetErrorCode()))
+					}
+				}
 			}
 
 		default:
@@ -194,7 +224,7 @@ func (layer *Layer2Core) initializeLayer3Listeners() {
 
 // ==== close ====
 
-// invalid packet handler
+// close session handler
 func (layer *Layer2Core) closeSession(sessionId int64, reason enums.DisconnectReason) {
 	if layer.sessions.Exists(sessionId) {
 		layer.sessions.Delete(sessionId)

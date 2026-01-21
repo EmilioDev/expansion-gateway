@@ -49,3 +49,57 @@ func ByteReasonToDisconnectReason(reason byte) DisconnectReason {
 		return CloseReasonUnknown
 	}
 }
+
+func (reason DisconnectReason) String() string {
+	switch reason {
+	case CloseReasonNormalDisconnection:
+		return "CloseReasonNormalDisconnection"
+
+	case CloseReasonUnknown:
+		return "CloseReasonUnknown"
+
+	case CloseReasonChallengeTimeout:
+		return "CloseReasonChallengeTimeout"
+
+	case CloseReasonIdleTimeout:
+		return "CloseReasonIdleTimeout"
+
+	case CloseReasonClosedByGateway:
+		return "CloseReasonClosedByGateway"
+
+	case CloseReasonClosedByAnotherService:
+		return "CloseReasonClosedByAnotherService"
+
+	case CloseReasonInvalidPacket:
+		return "CloseReasonInvalidPacket"
+
+	case CloseReasonProtocolViolation:
+		return "CloseReasonProtocolViolation"
+
+	case CloseReasonGatewayInternalError:
+		return "CloseReasonGatewayInternalError"
+
+	case CloseReasonFailedAuthentication:
+		return "CloseReasonFailedAuthentication"
+
+	case CloseReasonSessionIdTakenByOtherConnection:
+		return "CloseReasonSessionIdTakenByOtherConnection"
+
+	case CloseReasonConnectionUnauthorized:
+		return "CloseReasonConnectionUnauthorized"
+
+	case CloseReasonUserRedirected:
+		return "CloseReasonUserRedirected"
+
+	case CloseReasonClosedByAdmin:
+		return "CloseReasonClosedByAdmin"
+
+	case CloseReasonConnectionLost:
+		return "CloseReasonConnectionLost"
+
+	case CloseReasonClientInternalError:
+		return "CloseReasonClientInternalError"
+	}
+
+	return "shit"
+}
