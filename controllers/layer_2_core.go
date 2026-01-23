@@ -235,9 +235,8 @@ func (layer *Layer2Core) closeSession(sessionId int64, reason enums.DisconnectRe
 }
 
 func (layer *Layer2Core) closeSessionInLayer1(sessionId int64, reason enums.DisconnectReason) {
-	if layer.layer1 != nil {
-		// we need to send the disconnect packet first
-		// do not forget to add it!!!
+	if layer.IsWorking() {
+		layer.layer1.SendPacket(dto.CreateDisconnectPacket(sessionId, reason))
 		layer.layer1.CloseSession(sessionId)
 	}
 }

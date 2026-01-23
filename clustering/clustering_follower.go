@@ -115,11 +115,8 @@ func (cluster *ClusteringFollower) initCallback() {
 			true,
 		); err == nil {
 			cluster.failedConsecutiveschecks = 0
-			fmt.Printf("cluster member %d did successful heath check\n", cluster.memberID)
 		} else {
 			cluster.failedConsecutiveschecks++
-
-			fmt.Printf("cluster member %d failed a heath check\n", cluster.memberID)
 
 			// if we reach the consecutive 10 failed health checks, we collapse
 			if cluster.failedConsecutiveschecks >= constants.CONNECTION_ATTEMPT_MAX_NUMBER {
