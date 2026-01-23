@@ -96,7 +96,7 @@ COPY --from=compiler /compiled/expansion-gateway ./expansion-gateway
 RUN ["chmod", "+x", "/app/expansion-gateway"]
 
 # exposing the ports
-EXPOSE ${PORT}
+EXPOSE ${PORT}/udp
 EXPOSE ${GRPC_CLUSTER_PORT}
 
 # and then we set the entry point, and that's it, done.
