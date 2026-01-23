@@ -61,8 +61,16 @@ func (cluster *ClusteringFollower) initCallback() {
 			break
 		}
 
-		fmt.Printf("connection attempt %d to cluster leader failed. %d attempts remaining. attempting in a few seconds...\n", attempt+1, constants.CONNECTION_ATTEMPT_MAX_NUMBER-attempt-1)
-		time.Sleep(constants.CLUSTER_MEMBER_INTERVAL_BETWEEN_CONNECTIONS)
+		sleep_timespan := helpers.GenerateRandomInt64()
+
+		if sleep_timespan < 0 {
+			sleep_timespan *= -1
+		}
+
+		sleep_timespan = sleep_timespan%7 + 3
+
+		fmt.Printf("connection attempt %d to cluster leader failed. %d attempts remaining. attempting in %d seconds...\n", attempt+1, constants.CONNECTION_ATTEMPT_MAX_NUMBER-attempt-1, sleep_timespan)
+		time.Sleep(time.Duration(sleep_timespan * int64(time.Second)))
 	}
 
 	if err != nil {
