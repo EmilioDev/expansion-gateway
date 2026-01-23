@@ -13,5 +13,5 @@ func CalculateClusterMemberWeight(
 		return math.MaxFloat32
 	}
 
-	return float32(messages)/float32(activeSessions) + (cpuUsage+ramUsage)/2
+	return float32(math.Max(float64(messages), 1))/float32(math.Max(float64(activeSessions), 1)) + (cpuUsage+ramUsage)/2
 }

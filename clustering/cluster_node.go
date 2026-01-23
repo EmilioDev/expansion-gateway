@@ -46,7 +46,7 @@ func CreateBaseClusterNode(
 		stopOnce:                &sync.Once{},
 		server:                  grpc.NewServer(),
 		MessagesCounter:         &atomic.Int64{},
-		sessionsTimeout:         120,
+		sessionsTimeout:         10,
 		epoch:                   &atomic.Int64{},
 		startTime:               time.Now(),
 		timeMutex:               sync.RWMutex{},
