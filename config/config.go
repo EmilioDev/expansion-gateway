@@ -147,7 +147,7 @@ func (conf *Configuration) Initialize() {
 
 	// path to the current grpc server
 	if s := os.Getenv("GRPC_SERVER_IP_PATH_WITHOUT_PORT"); s != "" {
-		conf.grpcIpAddressWithoutPort = s
+		conf.grpcIpAddressWithoutPort = helpers.RemoveCharFromString(s, byte('"'))
 	}
 
 	// path that should be used when redirecting to this node in kcp

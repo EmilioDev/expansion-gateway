@@ -13,6 +13,7 @@ import (
 	"expansion-gateway/interfaces/errorinfo"
 	"flag"
 	"fmt"
+	"time"
 
 	google "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -32,13 +33,19 @@ func CreateClusterFollowerClient() *ClusterFollower_Client {
 
 func (c *ClusterFollower_Client) Connect(source string) errorinfo.GatewayError {
 	addr := fmt.Sprintf("addr%d", helpers.GenerateRandomInt64())
-	address := flag.String(addr, source, "the address to connect to")
+	address := flag.String(addr, source, "the address to connect to the client")
 
 	if conn, err := google.NewClient(*address, google.WithTransportCredentials(insecure.NewCredentials())); err == nil {
 		c.connection = conn
-		c.client = grpc.NewExpansionGatewayClusterFollowerClient(conn)
 
-		return nil
+		client := grpc.NewExpansionGatewayClusterFollowerClient(conn)
+		ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
+		defer cancel()
+
+		if _, err := client.CheckIfFollowerIsOnline(ctx, &grpc.Empty{}); err == nil {
+			c.client = client
+			return nil
+		}
 	}
 
 	return helpers.WithStackTrace(clustererrors.CreateConnectionToServerFailedError(
@@ -119,26 +126,30 @@ func (c *ClusterFollower_Client) RequestAcceptClient(userID int64, userFrame *dt
 	ctx, cancel := context.WithTimeout(context.Background(), constants.CLUSTER_REQUEST_TIMEOUT)
 	defer cancel()
 
-	if res, err := c.client.RequestAcceptClient(ctx, userFrame.ToSubscriptionRequestData(userID)); err == nil {
-		if res.Body == nil {
-			return nil, clustererrors.CreateNoPayloadError(filePath,
-				122,
-				enums.ClusterFollower,
-				false)
+	for range constants.CONNECTION_ATTEMPT_MAX_NUMBER {
+		if res, err := c.client.RequestAcceptClient(ctx, userFrame.ToSubscriptionRequestData(userID)); err == nil {
+			if res.Body == nil {
+				return nil, clustererrors.CreateNoPayloadError(filePath,
+					123,
+					enums.ClusterFollower,
+					false)
+			}
+
+			response := clusters.ClusterUserSubscriptionResult{
+				Challenge:           helpers.ConvertInt32ArrayIntoByteArray(res.Body.Challenge),
+				SubscriptionID:      res.Body.SubscriptionID,
+				GatewayPath:         res.Body.NewGatewayAddress,
+				SessionEphemeralKey: helpers.ConvertInt32ArrayIntoByteArray(res.Body.ServerPublicEphemeralKey),
+			}
+
+			return &response, nil
 		}
 
-		response := clusters.ClusterUserSubscriptionResult{
-			Challenge:           helpers.ConvertInt32ArrayIntoByteArray(res.Body.Challenge),
-			SubscriptionID:      res.Body.SubscriptionID,
-			GatewayPath:         res.Body.NewGatewayAddress,
-			SessionEphemeralKey: helpers.ConvertInt32ArrayIntoByteArray(res.Body.ServerPublicEphemeralKey),
-		}
-
-		return &response, nil
+		time.Sleep(time.Second)
 	}
 
 	return nil, clustererrors.CreateOperationFailedError(filePath,
-		151,
+		140,
 		enums.ClusterFollower,
 		false)
 }

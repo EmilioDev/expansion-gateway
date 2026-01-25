@@ -303,21 +303,32 @@ func (layer *Layer2Leader) authorizeSession(sessionId int64) {
 			currentProcessData := helpers.GetResourceUsageOfProcessNoError(layer.pid)
 
 			var selectedIndex int64 = 0
+
+			messagesCount := layer.clusterServer.MessagesCounter.Load()
+			sessionsCount := int32(layer.sessions.Len())
+			cpuUsage := float32(currentProcessData.CPUusage)
+			ramUsage := currentProcessData.RAMusage
+
 			currentPoint := helpers.CalculateClusterMemberWeight(
-				layer.clusterServer.MessagesCounter.Load(),
-				int32(layer.sessions.Len()),
-				float32(currentProcessData.CPUusage),
-				currentProcessData.RAMusage,
+				messagesCount,
+				sessionsCount,
+				cpuUsage,
+				ramUsage,
 				true,
-			)
+			) * 1.01 // yes, intentionally, we make the leader heavier than the followers
 			tempPoint := currentPoint
 
 			layer.clusterServer.Clients.Iterate(func(index int64, data *clusters.ClusterFollowerContainer) {
+				messagesCount = data.MessagesSinceLastCheck()
+				sessionsCount = data.ActiveSessions()
+				cpuUsage = data.CPUpercentUsage()
+				ramUsage = data.RAMpercentUsage()
+
 				tempPoint = helpers.CalculateClusterMemberWeight(
-					data.MessagesSinceLastCheck(),
-					data.ActiveSessions(),
-					data.CPUpercentUsage(),
-					data.RAMpercentUsage(),
+					messagesCount,
+					sessionsCount,
+					cpuUsage,
+					ramUsage,
 					data.IsHealthy(),
 				)
 
@@ -325,6 +336,7 @@ func (layer *Layer2Leader) authorizeSession(sessionId int64) {
 					currentPoint = tempPoint
 					selectedIndex = index
 				}
+
 			})
 
 			if selectedIndex != 0 { // it has to be redirected
