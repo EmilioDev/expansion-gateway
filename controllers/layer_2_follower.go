@@ -9,6 +9,7 @@ import (
 	"expansion-gateway/dto/clusters/results"
 	"expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
+	"expansion-gateway/errors"
 	auth_errors "expansion-gateway/errors/auth"
 	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/interfaces/errorinfo"
@@ -94,6 +95,12 @@ func (layer *Layer2Follower) handlePacketFromLayer3(packet packets.Packet) error
 func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) errorinfo.GatewayError {
 	const filePath string = "/controllers/layer_2_follower.go"
 
+	if packet == nil {
+		return errors.CreateInvalidPacketError(filePath, 98)
+	}
+
+	sessionId := packet.GetSender()
+
 	if redirectedPacket, isRedirected := packet.(*dto.RedirectedPacket); isRedirected {
 		subscriptionId := redirectedPacket.SubscriptionID
 		if subscription, hasSubscription := layer.subscriptions.GetExists(subscriptionId); hasSubscription {
@@ -111,10 +118,12 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 					newSession.UpdateFromFollowerSubscription(subscription)
 					layer.subscriptions.Delete(subscriptionId)
 
-					sessionId := layer.sessions.Add(newSession)
-					layer.approveSession(sessionId)
-
 					layer.clusterServer.InformClientConnected(subscription.UserId)
+
+					layer.closeSession(sessionId, enums.CloseReasonSessionIdTakenByOtherConnection)
+
+					layer.sessions.Store(newSession, sessionId)
+					layer.approveSession(sessionId)
 
 					return nil
 				}
@@ -131,13 +140,15 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 					newSession.UpdateFromFollowerSubscription(subscription)
 					layer.subscriptions.Delete(subscriptionId)
 
-					sessionId := layer.sessions.Add(newSession)
-					layer.approveSession(sessionId)
-
 					newSession.Encryption.GenerateNewKey(clientEphemeralKey)
 					newSession.Encryption.DeleteEphemeralKeys()
 
 					layer.clusterServer.InformClientConnected(subscription.UserId)
+
+					layer.closeSession(sessionId, enums.CloseReasonSessionIdTakenByOtherConnection)
+
+					layer.sessions.Store(newSession, sessionId)
+					layer.approveSession(sessionId)
 
 					return nil
 				}

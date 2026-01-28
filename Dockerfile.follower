@@ -1,7 +1,7 @@
 # stage 1 is for caching dependences and building the executable
 FROM alpine:3.22.2 as compiler
 
-# the go dist used, we ae going to store it locally to avoid network issues
+# the go dist used, we are going to store it locally to avoid network issues
 # and to grant that docker is using the same version used during development
 ARG GO_DIST="go1.24.2.linux-amd64.tar.gz"
 
@@ -76,12 +76,6 @@ ENV SHARD_BUFFER_SIZE=1500
 ENV CONNECTION_TIMEOUT=1
 ENV SESSION_TIMEOUT_SECONDS=60
 ENV SESSION_WATCHER_PERIOD_MS=5000
-
-# private key: K73Pb0/BxWAtnFPJoRGQSBkIMj535uenf0jTve5IaXsuK95EeJf7Anwibo+QXWe5+xxzr4nMNBROd1WYbPmgNQ==
-ENV CLI_AUTH_KEY="LiveRHiX+wJ8Im6PkF1nufscc6+JzDQUTndVmGz5oDU="
-
-# private key: m1U7ebvaJ8W2bXc3mJy0rbKAE/jS2CPIN4Sw5oi81439OYbXirhskGuEF4utMSr2gMahlDhMqeCcHNH/dqKilw==
-ENV GODOT_AUTH_KEY="/TmG14q4bJBrhBeLrTEq9oDGoZQ4TKngnBzR/3aiopc="
 
 ENV CLUSTER_LEADER_GRPC=${CLUSTER_LEADER}
 ENV GRPC_SERVER_PATH="gateway-follower01:${GRPC_PORT}"

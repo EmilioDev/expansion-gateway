@@ -6,6 +6,7 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors"
 	"expansion-gateway/errors/layererrors"
+	sessionsErrors "expansion-gateway/errors/sessions"
 	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/dispatchers"
 	"expansion-gateway/interfaces/errorinfo"
@@ -79,7 +80,6 @@ func (layer *KcpAsLayer1) Start() errorinfo.GatewayError {
 			layer.listener = listener
 
 			go layer.process()
-			go layer.listenFromInputChannel()
 		} else {
 			result = helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 82, err), 2)
 		}
@@ -137,6 +137,8 @@ func (layer *KcpAsLayer1) SendPacket(packet packets.Packet) errorinfo.GatewayErr
 		} else {
 			return err
 		}
+	} else {
+		return sessionsErrors.CreateInvalidSessionError(filePath, 142, sessionId)
 	}
 
 	return nil
@@ -163,10 +165,6 @@ func (layer *KcpAsLayer1) DisableSession(sessionId int64) {
 		session.Close()
 		layer.sessions.Store(nil, sessionId)
 	}
-}
-
-func (layer *KcpAsLayer1) listenFromInputChannel() {
-	// for now, still pending...
 }
 
 func (layer *KcpAsLayer1) process() {

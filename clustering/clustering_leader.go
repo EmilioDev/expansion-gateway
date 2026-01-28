@@ -124,6 +124,8 @@ func CreateClusteringLeader(
 	gateway layers.Layer2Leader) *ClusteringLeader {
 	result := ClusteringLeader{}
 
+	result.thisGateway = gateway
+
 	result.ClusterNode = CreateBaseClusterNode(config, waiter, result.checkClients, result.close)
 	result.Clients = structs.CreateNewSessionDictionary[*clusters.ClusterFollowerContainer]()
 
