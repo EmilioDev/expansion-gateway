@@ -226,9 +226,7 @@ func (layer *Layer2Core) initializeLayer3Listeners() {
 
 // close session handler
 func (layer *Layer2Core) closeSession(sessionId int64, reason enums.DisconnectReason) {
-	if layer.sessions.Exists(sessionId) {
-		layer.sessions.Delete(sessionId)
-
+	if layer.sessions.WasDeleted(sessionId) {
 		layer.closeSessionInLayer1(sessionId, reason)
 		layer.closeSessionInLayer3(sessionId, reason)
 	}

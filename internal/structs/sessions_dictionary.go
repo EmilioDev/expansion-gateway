@@ -9,8 +9,8 @@ import (
 )
 
 type SessionsDictionary[T any] struct {
-	sessionsMutex sync.RWMutex
-	sessions      map[int64]T
+	sessionsMutex sync.RWMutex // semaphore used for avoiding collisions
+	sessions      map[int64]T  // collection of elements
 }
 
 // adds an element to the collection in the specified index
@@ -127,6 +127,20 @@ func (store *SessionsDictionary[T]) Delete(index int64) {
 	delete(store.sessions, index)
 
 	store.sessionsMutex.Unlock()
+}
+
+// if an element exists at the specified index, it will be deleted and true will be returned; but if
+// there is nothing at that index, it will just return false, and nothing else happens
+func (store *SessionsDictionary[T]) WasDeleted(index int64) bool {
+	store.sessionsMutex.Lock()
+	defer store.sessionsMutex.Unlock()
+
+	if _, exists := store.sessions[index]; exists {
+		delete(store.sessions, index)
+		return true
+	}
+
+	return false
 }
 
 // Iterate applies the given function to each session in the dictionary.
