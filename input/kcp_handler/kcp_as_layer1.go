@@ -12,7 +12,7 @@ import (
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/interfaces/parsers"
-	"expansion-gateway/internal/structs"
+	structs "expansion-gateway/internal/structs/dictionaries"
 	"fmt"
 	"net"
 	"sync"

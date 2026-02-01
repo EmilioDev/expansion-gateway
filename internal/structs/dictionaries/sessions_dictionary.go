@@ -1,5 +1,5 @@
-// file: /internals/structs/sessions_dictionary.go
-package structs
+// file: /internals/structs/dictionaries/sessions_dictionary.go
+package dictionaries
 
 import (
 	"crypto/rand"
@@ -53,6 +53,11 @@ func (store *SessionsDictionary[T]) Add(data T) int64 {
 	store.registers[index] = data
 
 	return index
+}
+
+// import all registers from another collection
+func (store *SessionsDictionary[T]) Import(source *SessionsDictionary[T]) {
+	store.MutexedDictionary.Import(source.MutexedDictionary)
 }
 
 // creates a new session dictionary

@@ -12,7 +12,7 @@ import (
 	"expansion-gateway/interfaces/layers"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/internal/others"
-	"expansion-gateway/internal/structs"
+	structs "expansion-gateway/internal/structs/dictionaries"
 	"sync"
 	"sync/atomic"
 	"time"

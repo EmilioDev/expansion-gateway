@@ -1,5 +1,5 @@
 // file: /internals/structs/subscription_key.go
-package structs
+package tries
 
 import (
 	subsErrors "expansion-gateway/errors/subscriptions"
@@ -27,9 +27,48 @@ func (s SubscriptionKey) IsFixedKey() bool {
 	return !helpers.IsCharacterInString(string(s), oneLevelWildcard)
 }
 
+// checks if this key completely is a wildcard. Is not the same as IsFixedKey that checks if contains
+// wildcards among other things
+func (s SubscriptionKey) IsWildCard() bool {
+	key := string(s)
+
+	return key == "#" || key == "+"
+}
+
+// checks if this key is exactly equal to +
+func (s SubscriptionKey) IsPlus() bool {
+	key := string(s)
+
+	return key == "+"
+}
+
+// checks if this key is exactly equal to #
+func (s SubscriptionKey) IsHash() bool {
+	key := string(s)
+
+	return key == "#"
+}
+
 // returns all key levels. ex: core/+/idea -> ["core", "+", "idea"]
-func (s SubscriptionKey) GetKeyLevels() []string {
-	return strings.Split(string(s), "/")
+func (s SubscriptionKey) GetKeyLevels() []SubscriptionKey {
+	keysAsString := strings.Split(string(s), "/")
+	answer := make([]SubscriptionKey, len(keysAsString))
+
+	for index, key := range keysAsString {
+		answer[index] = SubscriptionKey(key)
+	}
+
+	return answer
+}
+
+// returns the number of levels this subscription key has
+func (s SubscriptionKey) GetCantOfKeyLevels() int {
+	return len(strings.Split(string(s), "/"))
+}
+
+// converts this key into a simple string
+func (s SubscriptionKey) ToString() string {
+	return string(s)
 }
 
 // takes a string, and if it can be used as subscription, it creates one from it, or if it is invalid as

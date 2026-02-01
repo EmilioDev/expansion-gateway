@@ -1,5 +1,5 @@
-// file: /internals/structs/mutexed_dictionary.go
-package structs
+// file: /internals/structs/dictionaries/mutexed_dictionary.go
+package dictionaries
 
 import (
 	"sync"
@@ -15,6 +15,16 @@ func (store *MutexedDictionary[T, V]) Store(data V, index T) {
 	store.mutex.Lock()
 	store.registers[index] = data
 	store.mutex.Unlock()
+}
+
+// import all values from another collection into this one
+func (store *MutexedDictionary[T, V]) Import(source *MutexedDictionary[T, V]) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
+	for k, v := range source.registers {
+		store.registers[k] = v
+	}
 }
 
 // checks if an index has elements in the collection or not

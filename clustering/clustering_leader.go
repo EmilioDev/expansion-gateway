@@ -8,7 +8,7 @@ import (
 	res "expansion-gateway/dto/clusters/results"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/layers"
-	"expansion-gateway/internal/structs"
+	structs "expansion-gateway/internal/structs/dictionaries"
 	"fmt"
 	"sync"
 	"time"

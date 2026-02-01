@@ -14,7 +14,7 @@ import (
 	"expansion-gateway/errors/layererrors"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
-	"expansion-gateway/internal/structs"
+	structs "expansion-gateway/internal/structs/dictionaries"
 )
 
 type Layer2Follower struct {
