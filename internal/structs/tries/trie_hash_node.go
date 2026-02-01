@@ -23,11 +23,7 @@ func (node *TrieHashNode) GetSubscribers() []int64 {
 }
 
 func (node *TrieHashNode) GetSubscribersAsMap() *dictionaries.SessionsDictionary[struct{}] {
-	result := dictionaries.CreateNewSessionDictionary[struct{}]()
-
-	result.Import(node.subs)
-
-	return result
+	return node.subs
 }
 
 func (node *TrieHashNode) GetChildren() []TrieNode {

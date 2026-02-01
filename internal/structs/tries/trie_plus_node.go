@@ -17,19 +17,11 @@ func createTriePlusNode() *TriePlusNode {
 }
 
 func (node *TriePlusNode) GetSubscribers() []int64 {
-	result := dictionaries.CreateNewSessionDictionary[struct{}]()
-
-	result.Import(node.subs)
-
-	return result.Keys()
+	return node.subs.Keys()
 }
 
 func (node *TriePlusNode) GetSubscribersAsMap() *dictionaries.SessionsDictionary[struct{}] {
-	result := dictionaries.CreateNewSessionDictionary[struct{}]()
-
-	result.Import(node.subs)
-
-	return result
+	return node.subs
 }
 
 func (node *TriePlusNode) GetChildren() []TrieNode {
@@ -37,11 +29,7 @@ func (node *TriePlusNode) GetChildren() []TrieNode {
 }
 
 func (node *TriePlusNode) GetChild(key SubscriptionKey) TrieNode {
-	if res, exist := node.children.GetExists(key); exist {
-		return res
-	}
-
-	return nil
+	return node.children.Get(key)
 }
 
 func (node *TriePlusNode) HasChild(key SubscriptionKey) bool {
@@ -53,12 +41,13 @@ func (node *TriePlusNode) GetExistChild(key SubscriptionKey) (TrieNode, bool) {
 }
 
 func (node *TriePlusNode) CreateSubscriptionChild(key SubscriptionKey) {
-	if key == OneLevelWildcard && !node.children.Exists(OneLevelWildcard) {
-		node.children.Store(createTriePlusNode(), key)
-	} else if key == MultiLevelWildcard && !node.children.Exists(MultiLevelWildcard) {
-		node.children.Store(createTrieHashNode(), key)
-	} else if !node.children.Exists(key) {
-		node.children.Store(createTrieCommonNode(), key)
+	switch key {
+	case OneLevelWildcard:
+		node.children.StoreIfIndexEmpty(createTriePlusNode(), OneLevelWildcard)
+	case MultiLevelWildcard:
+		node.children.StoreIfIndexEmpty(createTrieHashNode(), MultiLevelWildcard)
+	default:
+		node.children.StoreIfIndexEmpty(createTrieCommonNode(), key)
 	}
 }
 

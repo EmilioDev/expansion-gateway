@@ -17,6 +17,16 @@ func (store *MutexedDictionary[T, V]) Store(data V, index T) {
 	store.mutex.Unlock()
 }
 
+// stores a value in a specific index in the collection if there is no value asosciated to that index
+func (store *MutexedDictionary[T, V]) StoreIfIndexEmpty(data V, index T) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
+	if _, exists := store.registers[index]; !exists {
+		store.registers[index] = data
+	}
+}
+
 // import all values from another collection into this one
 func (store *MutexedDictionary[T, V]) Import(source *MutexedDictionary[T, V]) {
 	store.mutex.Lock()
