@@ -160,3 +160,22 @@ protocol version 1:
 
         notes:
           - this packet has a fixed size of 5 bytes
+
+      unsubscribe:
+        a bbbb cccc ddddddddddd
+
+        where:
+          - a: packet type (unsubscribe in this case). 1 byte [required]
+          - b: unsubscription packet identifier. identifier of this specific packet 4 bytes [required]
+          - c: subscription key length. it speecifies the size of the subscription key to unsubscribe. 4 bytes [required]
+          - d: subscription key. it contains the key where the user wants to unsubscribe. it has the size specified in subscription key length [required]
+
+      unsubscribe acknowledgement:
+        a bbbb
+
+        where:
+          - a: packet type (unsuback in this case). 1 byte [required]
+          - b: unsubscribe packet identifier. the identifier of the unsubscribe packet you want to acknowledge. 4 bytes [required]
+
+        notes:
+          - this packet has a fixed size of 5 bytes
