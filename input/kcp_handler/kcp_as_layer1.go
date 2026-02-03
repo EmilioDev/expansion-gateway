@@ -17,6 +17,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	kcp "github.com/xtaci/kcp-go/v5"
 )
@@ -25,6 +26,7 @@ type KcpAsLayer1 struct {
 	sessions         *structs.SessionsDictionary[*kcp.UDPSession] // all the sessions that are currently active
 	listener         *kcp.Listener                                // the kcp listener
 	outputDispatcher dispatchers.Dispatcher                       // this is the channel used to communicate with the next layer
+	inputReceiver    dispatchers.Reciver                          // receiver from layer 1
 	configuration    *config.Configuration                        // this is the configuration module. it contains all the config details
 	parser           parsers.ByteStreamToPacketParser             // the byte array to packet parser
 	working          *atomic.Bool                                 // tells you if this layer is working or not
@@ -73,13 +75,15 @@ func (layer *KcpAsLayer1) Start() errorinfo.GatewayError {
 
 		if listener, err := kcp.ListenWithOptions(universalPath, nil, 10, 3); err == nil {
 			layer.working.Store(true)
-			if layer.configuration.AreWeClusterLeaders() {
-				fmt.Printf("server running on %s\n", serverPath)
-			}
 
 			layer.listener = listener
 
 			go layer.process()
+			go layer.initializeLayer2Listeners()
+
+			if layer.configuration.AreWeClusterLeaders() {
+				fmt.Printf("server running on %s\n", serverPath)
+			}
 		} else {
 			result = helpers.WithStackTrace(errors.CreateErrorWrapper(filePath, 82, err), 2)
 		}
@@ -115,8 +119,10 @@ func (layer *KcpAsLayer1) Stop() errorinfo.GatewayError {
 	return nil
 }
 
-func (layer *KcpAsLayer1) ConfigureDumbLayer(outputDispatcher dispatchers.Dispatcher) errorinfo.GatewayError {
-	layer.outputDispatcher = outputDispatcher
+func (layer *KcpAsLayer1) ConfigureDumbLayer(outputChannel dispatchers.Dispatcher, inputChannel dispatchers.Reciver) errorinfo.GatewayError {
+	layer.outputDispatcher = outputChannel
+	layer.inputReceiver = inputChannel
+
 	return nil
 }
 
@@ -225,6 +231,38 @@ func (layer *KcpAsLayer1) handleSession(connectionId int64) {
 			}
 		} else {
 			return
+		}
+	}
+}
+
+func (layer *KcpAsLayer1) initializeLayer2Listeners() {
+	shards := layer.inputReceiver.ShardCount()
+
+	for x := 0; x < shards; x++ {
+		layer.wg.Add(1)
+		go layer.handlePacketsFromLayer2(x)
+	}
+}
+
+func (layer *KcpAsLayer1) handlePacketsFromLayer2(shardIndex int) {
+	defer layer.wg.Done()
+	channel := layer.inputReceiver.GetShard(shardIndex)
+
+	for layer.IsWorking() {
+		select {
+		case packet, ok := <-channel:
+			if !ok {
+				return
+			}
+
+			if packet == nil {
+				continue
+			} else {
+				layer.SendPacket(packet)
+			}
+
+		default:
+			time.Sleep(time.Millisecond) // prevents tight loop
 		}
 	}
 }

@@ -23,7 +23,7 @@ func (layer *NatsBasicHandlerLayer3) UnsubscribeTo(topic string) errorinfo.Gatew
 	return nil
 }
 
-func (layer *NatsBasicHandlerLayer3) ConfigureDumbLayer(outputChannel dispatchers.Dispatcher) errorinfo.GatewayError {
+func (layer *NatsBasicHandlerLayer3) ConfigureDumbLayer(outputChannel dispatchers.Dispatcher, inputChannel dispatchers.Reciver) errorinfo.GatewayError {
 	return nil
 }
 

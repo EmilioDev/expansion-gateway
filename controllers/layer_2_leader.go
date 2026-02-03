@@ -212,13 +212,13 @@ func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.
 				)
 			}
 
-			if err = layer.layer1.SendPacket(newChallengePacket); err == nil {
-				if connectionState == enums.HELLO_RECEIVED {
-					sessionStored.SetState(enums.CHALLENGE_SENT)
-				}
+			layer.sendPacketToLayer1(newChallengePacket)
+
+			if connectionState == enums.HELLO_RECEIVED {
+				sessionStored.SetState(enums.CHALLENGE_SENT)
 			}
 
-			return err
+			return nil
 		}
 
 		// if the state of the session is not CHALLENGE_SENT or HELLO_RECEIVED, then this is an invalid packet
@@ -258,12 +258,10 @@ func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.
 			)
 		}
 
-		if err2 := layer.layer1.SendPacket(newChallengePacket); err2 == nil {
-			newSession.SetState(enums.CHALLENGE_SENT)
-			return nil
-		} else {
-			return err2
-		}
+		layer.sendPacketToLayer1(newChallengePacket)
+		newSession.SetState(enums.CHALLENGE_SENT)
+
+		return nil
 	}
 
 	// if the random challenge generation failed, then we go for a manual one
@@ -272,11 +270,7 @@ func (layer *Layer2Leader) handleHelloPacket(packet *dto.HelloPacket) errorinfo.
 	newSession.SetChallenge(&defaultChallengeNonce)
 	newChallengePacket := dto.GenerateChallengePacket(clientId, &defaultChallengeNonce)
 
-	if err := layer.layer1.SendPacket(newChallengePacket); err == nil {
-		newSession.SetState(enums.CHALLENGE_SENT)
-	} else {
-		return err
-	}
+	layer.sendPacketToLayer1(newChallengePacket)
 
 	return nil
 }

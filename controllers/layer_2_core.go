@@ -26,6 +26,7 @@ type Layer2Core struct {
 	working                   *atomic.Bool
 	configuration             *config.Configuration
 	layer1Reciver             disp.Reciver
+	layer1Dispatcher          disp.Dispatcher
 	sessions                  *structs.SessionsDictionary[*sessionsDTO.Layer2Session]
 	wg                        *sync.WaitGroup
 	layer1PacketHandler       func(packets.Packet) errorinfo.GatewayError
@@ -117,11 +118,13 @@ func (layer *Layer2Core) Stop() errorinfo.GatewayError {
 func (layer *Layer2Core) ConfigureFirstLayer(target layers.Layer1) errorinfo.GatewayError {
 	layer.layer1 = target
 
-	dispatcher, reciver := others.NewShardedDispatcher(layer.configuration)
+	layer1InDispatcher, layer1InReceiver := others.NewShardedDispatcher(layer.configuration)
+	layer1OutDispatcher, layer1OutReceiver := others.NewShardedDispatcher(layer.configuration)
 
-	layer.layer1Reciver = reciver
+	layer.layer1Reciver = layer1InReceiver
+	layer.layer1Dispatcher = layer1OutDispatcher
 
-	return layer.layer1.ConfigureDumbLayer(dispatcher)
+	return layer.layer1.ConfigureDumbLayer(layer1InDispatcher, layer1OutReceiver)
 }
 
 func (layer *Layer2Core) ConfigureThirdLayer(target layers.Layer3) errorinfo.GatewayError {
@@ -234,6 +237,13 @@ func (layer *Layer2Core) initializeLayer3Listeners() {
 	// Reserved for later
 }
 
+// ==== send packet ====
+
+// sends a packet to layer 1
+func (layer *Layer2Core) sendPacketToLayer1(packet packets.Packet) {
+	layer.layer1Dispatcher.Dispatch(packet)
+}
+
 // ==== close ====
 
 // close session handler
@@ -285,7 +295,7 @@ func (layer *Layer2Core) approveSession(sessionId int64) {
 		}
 
 		packet := dto.CreateNewConnectedPacket(sessionId, sessionToApprove)
-		layer.layer1.SendPacket(packet)
+		layer.sendPacketToLayer1(packet)
 
 		sessionToApprove.SetState(enums.SESSION_CONNECTED)
 	}
@@ -298,7 +308,7 @@ func (layer *Layer2Core) approveSession(sessionId int64) {
 func (layer *Layer2Core) isRedirecting(sessionId int64) bool {
 	if session, sessionExists := layer.sessions.GetExists(sessionId); sessionExists {
 		if session.GetState() == enums.REDIRECTING {
-			layer.layer1.SendPacket(session.GetRedirectPacket())
+			layer.sendPacketToLayer1(session.GetRedirectPacket())
 			return true
 		}
 	}
@@ -358,9 +368,10 @@ func (layer *Layer2Core) handleSubscribePacket(packet *dto.SubscribePacket) erro
 		if subId != session.LastSubscribeId.Load() {
 			session.LastSubscribeId.Store(subId)
 			layer.subscriptions.SubscribeTo(packet.Key, sender)
-			layer.layer1.SendPacket(dto.CreateSubackPacket(sender, subId))
+
+			layer.sendPacketToLayer1(dto.CreateSubackPacket(sender, subId))
 		} else {
-			layer.layer1.SendPacket(dto.CreateSubackPacket(sender, subId))
+			layer.sendPacketToLayer1(dto.CreateSubackPacket(sender, subId))
 		}
 	}
 
