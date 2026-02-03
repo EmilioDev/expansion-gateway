@@ -249,6 +249,8 @@ func (layer *Layer2Core) sendPacketToLayer1(packet packets.Packet) {
 // close session handler
 func (layer *Layer2Core) closeSession(sessionId int64, reason enums.DisconnectReason) {
 	if layer.sessions.WasDeleted(sessionId) {
+		layer.subscriptions.RemoveSubscriberFromAllSubscriptions(sessionId)
+
 		layer.closeSessionInLayer1(sessionId, reason)
 		layer.closeSessionInLayer3(sessionId, reason)
 	}

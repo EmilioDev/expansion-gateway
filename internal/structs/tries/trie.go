@@ -55,6 +55,11 @@ func (trie *Trie) UnsubscribeTo(subscription SubscriptionKey, subscriber int64) 
 	destiny.Unsubscribe(subscriber)
 }
 
+// removes a client from all subscriptions
+func (trie *Trie) RemoveSubscriberFromAllSubscriptions(subscriber int64) {
+	go removeSubscriberFromAllSubscriptions(trie.root, subscriber)
+}
+
 func getAllSubscriptions(subscriptionLevels []SubscriptionKey, currentIndex int, root TrieNode) *dictionaries.SessionsDictionary[struct{}] {
 	// if this is the final level of the subscription, then finish here
 	if currentIndex == len(subscriptionLevels) {
@@ -79,4 +84,14 @@ func getAllSubscriptions(subscriptionLevels []SubscriptionKey, currentIndex int,
 	}
 
 	return result
+}
+
+func removeSubscriberFromAllSubscriptions(root TrieNode, subscriberId int64) {
+	root.Unsubscribe(subscriberId)
+
+	childs := root.GetChildren()
+
+	for _, child := range childs {
+		removeSubscriberFromAllSubscriptions(child, subscriberId)
+	}
 }
