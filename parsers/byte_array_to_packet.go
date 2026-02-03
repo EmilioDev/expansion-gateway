@@ -34,6 +34,9 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 	case enums.PINGACK:
 		return bytearraytopacket.ToPingAckPacket(byteArray, connectionID)
 
+	case enums.SUBSCRIBE:
+		return bytearraytopacket.ToSubscribePacket(byteArray, connectionID)
+
 	default:
 		return nil, errors.CreateInvalidPacketError(filePath, 22)
 	}

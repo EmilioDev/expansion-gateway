@@ -38,9 +38,14 @@ type Layer2Session struct {
 	// configuration object
 	configuration *config.Configuration
 
+	// last redirect packet
 	redirectPacket atomic.Pointer[dto.RedirectPacket]
 
+	// encryption module
 	Encryption *crypto.CryptoSessionModule // cryptographics module
+
+	// last subscribe
+	LastSubscribeId atomic.Int32
 }
 
 // GenerateNewLayer2Session creates a new Layer2Session with default values
@@ -56,6 +61,7 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		redirectPacket:   atomic.Pointer[dto.RedirectPacket]{},
 		Encryption:       crypto.CreateNewCryptoSessionModule(),
 		requestedPing:    atomic.Bool{},
+		LastSubscribeId:  atomic.Int32{},
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))

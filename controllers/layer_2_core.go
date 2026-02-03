@@ -6,6 +6,7 @@ import (
 	"expansion-gateway/dto"
 	sessionsDTO "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
+	authErrors "expansion-gateway/errors/auth"
 	"expansion-gateway/errors/layererrors"
 	disp "expansion-gateway/interfaces/dispatchers"
 	"expansion-gateway/interfaces/errorinfo"
@@ -13,6 +14,7 @@ import (
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/internal/others"
 	structs "expansion-gateway/internal/structs/dictionaries"
+	"expansion-gateway/internal/structs/tries"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,6 +34,7 @@ type Layer2Core struct {
 	stopClusterCallback       func() errorinfo.GatewayError
 	startOnce                 *sync.Once
 	stopOnce                  *sync.Once
+	subscriptions             *tries.Trie
 }
 
 // starts the server
@@ -203,6 +206,15 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 						layer.closeSession(senderId, enums.CloseReasonConnectionUnauthorized)
 					}
 
+				case enums.SUBSCRIBE:
+					if pkt, ok := packet.(*dto.SubscribePacket); ok {
+						if err := layer.handleSubscribePacket(pkt); err != nil {
+							layer.closeSession(senderId, enums.CloseReasonProtocolViolation)
+						}
+					} else {
+						layer.closeSession(senderId, enums.CloseReasonGatewayInternalError)
+					}
+
 				default:
 					if err := layer.layer1PacketHandler(packet); err != nil {
 						layer.closeSession(senderId, enums.ByteReasonToDisconnectReason(err.GetErrorCode()))
@@ -329,7 +341,33 @@ func (layer *Layer2Core) sessionTimeoutWatcher() {
 	}
 }
 
-// ==== constructor ====
+// ===== pub/sub handlers =====
+
+// subscribes a user in a subscription
+func (layer *Layer2Core) handleSubscribePacket(packet *dto.SubscribePacket) errorinfo.GatewayError {
+	sender := packet.GetSender()
+
+	if session, exists := layer.sessions.GetExists(sender); exists {
+		if session.GetState() != enums.SESSION_CONNECTED {
+			return authErrors.CreateConnectionUnauthorizedError("controllers/layer_2_core.go", 351, sender)
+		}
+
+		session.RefreshActivity()
+		subId := packet.GetSubscriptionID()
+
+		if subId != session.LastSubscribeId.Load() {
+			session.LastSubscribeId.Store(subId)
+			layer.subscriptions.SubscribeTo(packet.Key, sender)
+			layer.layer1.SendPacket(dto.CreateSubackPacket(sender, subId))
+		} else {
+			layer.layer1.SendPacket(dto.CreateSubackPacket(sender, subId))
+		}
+	}
+
+	return nil
+}
+
+// ===== constructor =====
 
 func CreateNewLayer2Core(
 	conf *config.Configuration,
@@ -355,5 +393,6 @@ func CreateNewLayer2Core(
 		stopClusterCallback:       stopClusterCallback,
 		startOnce:                 &sync.Once{},
 		stopOnce:                  &sync.Once{},
+		subscriptions:             tries.CreateTrie(),
 	}
 }
