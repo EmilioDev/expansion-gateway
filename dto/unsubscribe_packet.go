@@ -9,9 +9,17 @@ import (
 )
 
 type UnsubscribePacket struct {
-	Key                   tries.SubscriptionKey
-	susbscriptionPacketId int32
-	owner                 int64
+	Key                     tries.SubscriptionKey
+	unsusbscriptionPacketId int32
+	owner                   int64
+}
+
+func CreateUnsubscribePacket(key tries.SubscriptionKey, packetId int32, owner int64) *UnsubscribePacket {
+	return &UnsubscribePacket{
+		Key:                     key,
+		owner:                   owner,
+		unsusbscriptionPacketId: packetId,
+	}
 }
 
 func (packet *UnsubscribePacket) GetPacketType() enums.PacketType {
@@ -34,13 +42,13 @@ func (packet *UnsubscribePacket) Marshal() ([]byte, errors.GatewayError) {
 	kl := packet.Key.KeyLength()
 	output := make([]byte, 0, 1+4+4+kl)
 
-	subId := helpers.ConvertInt32Into4Bytes(packet.susbscriptionPacketId)
+	unsubId := helpers.ConvertInt32Into4Bytes(packet.unsusbscriptionPacketId)
 
 	key := packet.Key.ToByteArray()
 	keyLen := helpers.ConvertInt32Into4Bytes(int32(kl))
 
 	output = append(output, byte(enums.UNSUBSCRIBE))
-	output = append(output, subId[:]...)
+	output = append(output, unsubId[:]...)
 	output = append(output, keyLen[:]...)
 	output = append(output, key...)
 
