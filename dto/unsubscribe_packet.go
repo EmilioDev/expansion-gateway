@@ -14,6 +14,7 @@ type UnsubscribePacket struct {
 	owner                   int64
 }
 
+// creates an UNSUBSCRIBE packet
 func CreateUnsubscribePacket(key tries.SubscriptionKey, packetId int32, owner int64) *UnsubscribePacket {
 	return &UnsubscribePacket{
 		Key:                     key,
@@ -36,6 +37,10 @@ func (packet *UnsubscribePacket) GetPayload() string {
 
 func (packet *UnsubscribePacket) GetSender() int64 {
 	return packet.owner
+}
+
+func (packet *UnsubscribePacket) GetUnsubscriptionID() int32 {
+	return packet.unsusbscriptionPacketId
 }
 
 func (packet *UnsubscribePacket) Marshal() ([]byte, errors.GatewayError) {

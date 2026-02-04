@@ -12,6 +12,7 @@ type UnsubackPacket struct {
 	owner                   int64
 }
 
+// creates an UNSUBACK packet
 func CreateUnsubackPacket(owner int64, pid int32) *UnsubackPacket {
 	return &UnsubackPacket{
 		owner:                   owner,

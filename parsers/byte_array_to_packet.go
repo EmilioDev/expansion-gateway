@@ -37,6 +37,9 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 	case enums.SUBSCRIBE:
 		return bytearraytopacket.ToSubscribePacket(byteArray, connectionID)
 
+	case enums.UNSUBSCRIBE:
+		return bytearraytopacket.ToUnsubscribePacket(byteArray, connectionID)
+
 	default:
 		return nil, errors.CreateInvalidPacketError(filePath, 22)
 	}

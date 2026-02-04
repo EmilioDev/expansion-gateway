@@ -218,6 +218,15 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 						layer.closeSession(senderId, enums.CloseReasonGatewayInternalError)
 					}
 
+				case enums.UNSUBSCRIBE:
+					if pkt, ok := packet.(*dto.UnsubscribePacket); ok {
+						if err := layer.handleUnsubscribePacket(pkt); err != nil {
+							layer.closeSession(senderId, enums.CloseReasonProtocolViolation)
+						}
+					} else {
+						layer.closeSession(senderId, enums.CloseReasonGatewayInternalError)
+					}
+
 				default:
 					if err := layer.layer1PacketHandler(packet); err != nil {
 						layer.closeSession(senderId, enums.ByteReasonToDisconnectReason(err.GetErrorCode()))
@@ -374,6 +383,31 @@ func (layer *Layer2Core) handleSubscribePacket(packet *dto.SubscribePacket) erro
 			layer.sendPacketToLayer1(dto.CreateSubackPacket(sender, subId))
 		} else {
 			layer.sendPacketToLayer1(dto.CreateSubackPacket(sender, subId))
+		}
+	}
+
+	return nil
+}
+
+// unsubscribes a user to a subscription
+func (layer *Layer2Core) handleUnsubscribePacket(packet *dto.UnsubscribePacket) errorinfo.GatewayError {
+	sender := packet.GetSender()
+
+	if session, exists := layer.sessions.GetExists(sender); exists {
+		if session.GetState() != enums.SESSION_CONNECTED {
+			return authErrors.CreateConnectionUnauthorizedError("controllers/layer_2_core.go", 397, sender)
+		}
+
+		session.RefreshActivity()
+		unsubId := packet.GetUnsubscriptionID()
+
+		if unsubId != session.LastSubscribeId.Load() {
+			session.LastSubscribeId.Store(unsubId)
+			layer.subscriptions.UnsubscribeTo(packet.Key, sender)
+
+			layer.sendPacketToLayer1(dto.CreateUnsubackPacket(sender, unsubId))
+		} else {
+			layer.sendPacketToLayer1(dto.CreateUnsubackPacket(sender, unsubId))
 		}
 	}
 
