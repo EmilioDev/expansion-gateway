@@ -9,3 +9,4 @@ vendor/
 packets.txt
 clustering/grpc/
 expansion-gateway*
+certificates/

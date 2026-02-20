@@ -36,3 +36,6 @@ expansion-gateway*
 
 # grpc compilation
 clustering/grpc/
+
+# certificates
+certificates/
