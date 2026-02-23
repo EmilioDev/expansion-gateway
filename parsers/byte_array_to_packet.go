@@ -40,6 +40,9 @@ func (parser *BasicByteArrayToPacketParser) ParseByteArrayToPacket(byteArray *[]
 	case enums.UNSUBSCRIBE:
 		return bytearraytopacket.ToUnsubscribePacket(byteArray, connectionID)
 
+	case enums.PUBLISH:
+		return bytearraytopacket.ToPublishPacket(byteArray, connectionID)
+
 	default:
 		return nil, errors.CreateInvalidPacketError(filePath, 22)
 	}
