@@ -2,6 +2,7 @@ package dto
 
 import (
 	"expansion-gateway/enums"
+	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/internal/structs/tries"
@@ -65,5 +66,39 @@ func (packet *PublishPacket) GetSender() int64 {
 }
 
 func (packet *PublishPacket) Marshal() ([]byte, errorinfo.GatewayError) {
-	return []byte{}, nil
+	keyLen := packet.Key.KeyLength()
+	payloadLen := len(packet.payload)
+	result := make([]byte, 0, 1+1+4+keyLen+4+payloadLen)
+
+	// publish identifier
+	result = append(result, byte(enums.PUBLISH))
+
+	// flags
+	if packet.publishPacketId == 0 {
+		result = append(result, 0)
+	} else {
+		identifier := helpers.ConvertInt32Into4Bytes(packet.publishPacketId)
+
+		result = append(result, 1)
+		result = append(result, identifier[:]...)
+	}
+
+	// key
+	keyLenArray := helpers.ConvertInt32Into4Bytes(int32(keyLen))
+	key := packet.Key.ToByteArray()
+
+	result = append(result, keyLenArray[:]...)
+	result = append(result, key...)
+
+	// payload
+	payloadLenArray := helpers.ConvertInt32Into4Bytes(int32(payloadLen))
+
+	result = append(result, payloadLenArray[:]...)
+	result = append(result, packet.payload...)
+
+	return result, nil
+}
+
+func (packet *PublishPacket) NeedsAcknowledgement() bool {
+	return packet.publishPacketId != 0
 }

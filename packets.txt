@@ -179,3 +179,25 @@ protocol version 1:
 
         notes:
           - this packet has a fixed size of 5 bytes
+
+      publish:
+        a b cccc dddd eeeeeeeeee ffff gggggggg
+
+        where:
+          - a: packet type (publish in this case). 1 byte [required]
+          - b: publish flags. 1 byte [required]
+          - c: packet identifier. it only appear if the confirm flag is on. it has 4 bytes.
+          - d: key size. it tells the size of the key where this packet should be published. 4 bytes. [required]
+          - e: key. it tells where this publish should be published. it has the size specified in key size. [required]
+          - f: payload size. it tells you the size if the payload to be published. 4 bytes [required]
+          - g: payload. it contains the payload of this publish. it has the size specified in payload size. [required]
+
+      publish acknowledgement:
+        a bbbb
+
+        where:
+          - a: packet type. (puback in this case). 1 byte [required]
+          - b: publish packet identifier. 4 bytes. [required]
+
+        notes:
+          - this packet has a fixed size of 5 bytes
