@@ -5,6 +5,7 @@ import (
 	"expansion-gateway/helpers"
 	errors "expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
+	"fmt"
 )
 
 type UnsubackPacket struct {
@@ -34,6 +35,18 @@ func (packet *UnsubackPacket) GetPayload() string {
 
 func (packet *UnsubackPacket) GetSender() int64 {
 	return packet.owner
+}
+
+func (packet *UnsubackPacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *UnsubackPacket) GetIdentifier() string {
+	return fmt.Sprintf("%d", packet.unsusbscriptionPacketId)
+}
+
+func (packet *UnsubackPacket) SetNewOwner(newOwner int64) {
+	packet.owner = newOwner
 }
 
 func (packet *UnsubackPacket) Marshal() ([]byte, errors.GatewayError) {

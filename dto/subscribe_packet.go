@@ -6,6 +6,7 @@ import (
 	errors "expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/internal/structs/tries"
+	"fmt"
 )
 
 type SubscribePacket struct {
@@ -40,6 +41,18 @@ func (packet *SubscribePacket) GetPayload() string {
 
 func (packet *SubscribePacket) GetSender() int64 {
 	return packet.owner
+}
+
+func (packet *SubscribePacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *SubscribePacket) GetIdentifier() string {
+	return fmt.Sprintf("%d", packet.susbscriptionPacketId)
+}
+
+func (packet *SubscribePacket) SetNewOwner(newOwner int64) {
+	packet.owner = newOwner
 }
 
 func (packet *SubscribePacket) Marshal() ([]byte, errors.GatewayError) {

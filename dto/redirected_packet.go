@@ -5,6 +5,7 @@ import (
 	"expansion-gateway/helpers"
 	errors "expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
+	"fmt"
 )
 
 type RedirectedPacket struct {
@@ -55,6 +56,18 @@ func (packet *RedirectedPacket) Marshal() ([]byte, errors.GatewayError) {
 
 func (packet *RedirectedPacket) GetSender() int64 {
 	return packet.OwnerID
+}
+
+func (packet *RedirectedPacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *RedirectedPacket) GetIdentifier() string {
+	return fmt.Sprintf("%d", packet.SubscriptionID)
+}
+
+func (packet *RedirectedPacket) SetNewOwner(newOwner int64) {
+	packet.OwnerID = newOwner
 }
 
 func CreateRedirectedPacketWithoutEphemeralKey(

@@ -81,6 +81,10 @@ func (s SubscriptionKey) ToByteArray() []byte {
 	return []byte(s)
 }
 
+func (s SubscriptionKey) ToNATSkey() string {
+	return strings.ReplaceAll(string(s), "/", ".")
+}
+
 // takes a string, and if it can be used as subscription, it creates one from it, or if it is invalid as
 // subscription, then returns an error
 func ConvertStringToSubscriptionKey(subscription string) (SubscriptionKey, errorinfo.GatewayError) {

@@ -14,19 +14,23 @@ type ChallengePacket struct {
 	ServerPublicEphemeralKey *[32]byte
 }
 
-func (packet ChallengePacket) GetPacketType() enums.PacketType {
+func (packet *ChallengePacket) GetPacketType() enums.PacketType {
 	return enums.CHALLENGE
 }
 
-func (packet ChallengePacket) GetPacketHeader() packets.PacketHeader {
+func (packet *ChallengePacket) GetPacketHeader() packets.PacketHeader {
 	return nil
 }
 
-func (packet ChallengePacket) GetPayload() string {
+func (packet *ChallengePacket) GetPayload() string {
 	return ""
 }
 
-func (packet ChallengePacket) Marshal() ([]byte, errorinfo.GatewayError) {
+func (packet *ChallengePacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *ChallengePacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	var output []byte = nil
 
 	if packet.ServerPublicEphemeralKey == nil {
@@ -46,8 +50,16 @@ func (packet ChallengePacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	return output, nil
 }
 
-func (packet ChallengePacket) GetSender() int64 {
+func (packet *ChallengePacket) GetSender() int64 {
 	return packet.UserId
+}
+
+func (packet *ChallengePacket) GetIdentifier() string {
+	return ""
+}
+
+func (packet *ChallengePacket) SetNewOwner(newOwner int64) {
+	packet.UserId = newOwner
 }
 
 // generates a challenge without the the ephemeral key

@@ -41,7 +41,12 @@ func (layer *Layer2Leader) MarkUserAsRedirected(userId int64) {
 }
 
 func (layer *Layer2Leader) initializeCluster() errorinfo.GatewayError {
-	return layer.clusterServer.Start()
+	if err := layer.clusterServer.Start(); err == nil {
+		layer.layer3.RenameGateway("gateway-leader")
+		return nil
+	} else {
+		return err
+	}
 }
 
 func (layer *Layer2Leader) stopCluster() errorinfo.GatewayError {

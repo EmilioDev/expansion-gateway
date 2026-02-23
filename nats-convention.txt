@@ -1,0 +1,12 @@
+subject:
+    <message-type>.<version>.@.<publish-key>
+
+    where:
+        - message-type: this tells you the direction of the message. when you publish to other systems, 
+            the value must be "input", but when others systems publish to you, the value is "output".
+        - version: the version of the schema to be used in the data.
+        - @: separator between the static fields if the subject, and the publish key
+        - publish-key: the key of the publish packet.
+
+    notes:
+        - the '@' and the '.' characters should not be allowed in the publish key

@@ -26,8 +26,13 @@ func (gateway *GatewayServer) initialize() {
 	gateway.mainLayer = gateway.getLayer2()
 	gateway.outputLayer = gateway.getLayer3()
 
-	gateway.mainLayer.ConfigureFirstLayer(gateway.inputLayer)
-	gateway.mainLayer.ConfigureThirdLayer(gateway.outputLayer)
+	if err := gateway.mainLayer.ConfigureFirstLayer(gateway.inputLayer); err != nil {
+		log.Fatalln(err)
+	}
+
+	if err := gateway.mainLayer.ConfigureThirdLayer(gateway.outputLayer); err != nil {
+		log.Fatalln(err)
+	}
 }
 
 func (gateway *GatewayServer) Start() errorinfo.GatewayError {

@@ -4,6 +4,7 @@ go 1.24.2
 
 require (
 	github.com/joho/godotenv v1.5.1
+	github.com/nats-io/nats.go v1.48.0
 	github.com/shirou/gopsutil/v4 v4.25.11
 	github.com/xtaci/kcp-go/v5 v5.6.59
 	golang.org/x/crypto v0.46.0
@@ -18,7 +19,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/reedsolomon v1.12.6 // indirect
 	github.com/lufia/plan9stats v0.0.0-20251013123823-9fd1530e3ec3 // indirect
-	github.com/nats-io/nats.go v1.48.0 // indirect
 	github.com/nats-io/nkeys v0.4.11 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

@@ -6,6 +6,7 @@ import (
 	errors "expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	"expansion-gateway/internal/structs/tries"
+	"fmt"
 )
 
 type UnsubscribePacket struct {
@@ -41,6 +42,18 @@ func (packet *UnsubscribePacket) GetSender() int64 {
 
 func (packet *UnsubscribePacket) GetUnsubscriptionID() int32 {
 	return packet.unsusbscriptionPacketId
+}
+
+func (packet *UnsubscribePacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *UnsubscribePacket) GetIdentifier() string {
+	return fmt.Sprintf("%d", packet.unsusbscriptionPacketId)
+}
+
+func (packet *UnsubscribePacket) SetNewOwner(newOwner int64) {
+	packet.owner = newOwner
 }
 
 func (packet *UnsubscribePacket) Marshal() ([]byte, errors.GatewayError) {

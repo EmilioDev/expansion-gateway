@@ -82,3 +82,15 @@ func (packet *ConnectedPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 func (packet *ConnectedPacket) GetSender() int64 {
 	return packet.sessionID
 }
+
+func (packet *ConnectedPacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *ConnectedPacket) GetIdentifier() string {
+	return ""
+}
+
+func (packet *ConnectedPacket) SetNewOwner(newOwner int64) {
+	packet.sessionID = newOwner
+}

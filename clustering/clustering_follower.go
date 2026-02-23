@@ -37,6 +37,10 @@ func (cluster *ClusteringFollower) InformClientConnected(clientId int64) errorin
 	return cluster.leader.InformUserIsRedirected(clientId)
 }
 
+func (cluster *ClusteringFollower) GetMemberID() int64 {
+	return cluster.memberID
+}
+
 // ==== init & close callbacks
 
 // this method is called when the server starts, it configures the timer that periodically

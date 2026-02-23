@@ -13,19 +13,19 @@ type ConnectPacket struct {
 	ClientEphemeralKey *[32]byte // the ephemeral key of this client
 }
 
-func (packet ConnectPacket) GetPacketType() enums.PacketType {
+func (packet *ConnectPacket) GetPacketType() enums.PacketType {
 	return enums.CONNECT
 }
 
-func (packet ConnectPacket) GetPacketHeader() packets.PacketHeader {
+func (packet *ConnectPacket) GetPacketHeader() packets.PacketHeader {
 	return nil
 }
 
-func (packet ConnectPacket) GetPayload() string {
+func (packet *ConnectPacket) GetPayload() string {
 	return ""
 }
 
-func (packet ConnectPacket) Marshal() ([]byte, errors.GatewayError) {
+func (packet *ConnectPacket) Marshal() ([]byte, errors.GatewayError) {
 	answer := make([]byte, 0, 65)
 
 	signature := packet.Signature[:]
@@ -36,8 +36,20 @@ func (packet ConnectPacket) Marshal() ([]byte, errors.GatewayError) {
 	return answer, nil
 }
 
-func (packet ConnectPacket) GetSender() int64 {
+func (packet *ConnectPacket) GetSender() int64 {
 	return packet.OwnerID
+}
+
+func (packet *ConnectPacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *ConnectPacket) GetIdentifier() string {
+	return ""
+}
+
+func (packet *ConnectPacket) SetNewOwner(newOwner int64) {
+	packet.OwnerID = newOwner
 }
 
 func CreateConnectPacketWithoutEphemeralKey(ownerId int64, signature [64]byte) *ConnectPacket {

@@ -31,7 +31,7 @@ type KcpAsLayer1 struct {
 	parser           parsers.ByteStreamToPacketParser             // the byte array to packet parser
 	working          *atomic.Bool                                 // tells you if this layer is working or not
 	shutdownOnce     *sync.Once                                   // executes the shutdown only once
-	startOnce        *sync.Once                                   //executes the start only once
+	startOnce        *sync.Once                                   // executes the start only once
 	wg               *sync.WaitGroup                              // the wait group of layer 1
 }
 

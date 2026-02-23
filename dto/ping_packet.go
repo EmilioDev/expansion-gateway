@@ -35,3 +35,15 @@ func (packet *PingPacket) GetSender() int64 {
 func (packet *PingPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	return []byte{byte(enums.PING)}, nil
 }
+
+func (packet *PingPacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *PingPacket) GetIdentifier() string {
+	return ""
+}
+
+func (packet *PingPacket) SetNewOwner(newOwner int64) {
+	packet.sessionID = newOwner
+}

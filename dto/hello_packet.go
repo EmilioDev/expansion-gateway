@@ -40,23 +40,27 @@ func CreateHelloPacket(sender int64) *HelloPacket {
 	}
 }
 
-func (packet HelloPacket) GetPacketType() enums.PacketType {
+func (packet *HelloPacket) GetPacketType() enums.PacketType {
 	return enums.HELLO
 }
 
-func (packet HelloPacket) GetPacketHeader() packets.PacketHeader {
+func (packet *HelloPacket) GetPacketHeader() packets.PacketHeader {
 	return packet.VariableHeader
 }
 
-func (packet HelloPacket) GetPayload() string {
+func (packet *HelloPacket) GetPayload() string {
 	return ""
 }
 
-func (packet HelloPacket) GetSender() int64 {
+func (packet *HelloPacket) GetSender() int64 {
 	return packet.Sender
 }
 
-func (packet HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
+func (packet *HelloPacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	const filePath string = "/dto/hello_packet.go"
 	answer := []byte{
 		byte(enums.HELLO),
@@ -101,4 +105,12 @@ func (packet HelloPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	}
 
 	return answer, nil
+}
+
+func (packet *HelloPacket) GetIdentifier() string {
+	return ""
+}
+
+func (packet *HelloPacket) SetNewOwner(newOwner int64) {
+	packet.Sender = newOwner
 }

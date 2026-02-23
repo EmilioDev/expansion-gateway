@@ -10,4 +10,5 @@ type Layer3 interface {
 	Publish(data packets.Packet) errorinfo.GatewayError
 	SubscribeTo(topic string) errorinfo.GatewayError
 	UnsubscribeTo(topic string) errorinfo.GatewayError
+	RenameGateway(newName string)
 }

@@ -15,6 +15,7 @@ import (
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
 	structs "expansion-gateway/internal/structs/dictionaries"
+	"fmt"
 )
 
 type Layer2Follower struct {
@@ -59,7 +60,14 @@ func (layer *Layer2Follower) GenerateUserSubscription(
 }
 
 func (layer *Layer2Follower) initializeCluster() errorinfo.GatewayError {
-	return layer.clusterServer.Start()
+	if err := layer.clusterServer.Start(); err == nil {
+		name := fmt.Sprintf("gateway-follower3%d", layer.clusterServer.GetMemberID())
+		layer.layer3.RenameGateway(name)
+
+		return nil
+	} else {
+		return err
+	}
 }
 
 func (layer *Layer2Follower) stopCluster() errorinfo.GatewayError {

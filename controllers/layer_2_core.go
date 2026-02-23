@@ -27,6 +27,8 @@ type Layer2Core struct {
 	configuration             *config.Configuration
 	layer1Reciver             disp.Reciver
 	layer1Dispatcher          disp.Dispatcher
+	layer3Reciver             disp.Reciver
+	layer3Dispatcher          disp.Dispatcher
 	sessions                  *structs.SessionsDictionary[*sessionsDTO.Layer2Session]
 	wg                        *sync.WaitGroup
 	layer1PacketHandler       func(packets.Packet) errorinfo.GatewayError
@@ -65,6 +67,8 @@ func (layer *Layer2Core) Start() errorinfo.GatewayError {
 		// Start Layer 3 (if applicable)
 		if err := layer.layer3.Start(); err != nil {
 			result = err
+			layer.layer1.Stop()
+
 			return
 		}
 
@@ -129,7 +133,14 @@ func (layer *Layer2Core) ConfigureFirstLayer(target layers.Layer1) errorinfo.Gat
 
 func (layer *Layer2Core) ConfigureThirdLayer(target layers.Layer3) errorinfo.GatewayError {
 	layer.layer3 = target
-	return nil
+
+	layer3InDispatcher, layer3InReceiver := others.NewShardedDispatcher(layer.configuration)
+	layer3OutDispatcher, layer3OutReceiver := others.NewShardedDispatcher(layer.configuration)
+
+	layer.layer3Reciver = layer3InReceiver
+	layer.layer3Dispatcher = layer3OutDispatcher
+
+	return layer.layer3.ConfigureDumbLayer(layer3InDispatcher, layer3OutReceiver)
 }
 
 func (layer *Layer2Core) IsWorking() bool {
@@ -243,7 +254,42 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 // ==== layer 3 listener
 
 func (layer *Layer2Core) initializeLayer3Listeners() {
-	// Reserved for later
+	shards := layer.layer3Reciver.ShardCount()
+
+	for x := 0; x < shards; x++ {
+		layer.wg.Add(1)
+		go layer.listenLayer3(x)
+	}
+}
+
+func (layer *Layer2Core) listenLayer3(shardIndex int) {
+	defer layer.wg.Done()
+
+	channel := layer.layer3Reciver.GetShard(shardIndex)
+
+	for layer.IsWorking() {
+		select {
+		case packet, ok := <-channel:
+			if !ok {
+				return
+			}
+
+			if packet == nil {
+				continue
+			}
+
+			subscription := tries.SubscriptionKey(packet.GetIdentifier())
+			subscribers := layer.subscriptions.GetSubscribers(subscription)
+
+			for _, senderId := range subscribers {
+				packet.SetNewOwner(senderId)
+				layer.sendPacketToLayer1(packet)
+			}
+
+		default:
+			time.Sleep(time.Millisecond * 10) // Yield CPU, prevent tight loop
+		}
+	}
 }
 
 // ==== send packet ====

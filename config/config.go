@@ -27,6 +27,7 @@ type Configuration struct {
 	grpcIpAddressWithoutPort string        // path to access to this node
 	kcpPathWithoutPort       string        // the kcp path that should be used when redirecting to this node
 	grpcClusterPort          uint16        // the port this cluster member is using to receive request from other members
+	natsServerPath           string        // path to the NATS server where this client should publish the packets
 }
 
 // ===== environment variables, their description, and their default value
@@ -43,6 +44,7 @@ type Configuration struct {
 // CLUSTER_LEADER_GRPC: the path to the cluster leader of this cluster. default: empty
 // GRPC_SERVER_IP_PATH_WITHOUT_PORT: the ip, without the port, used by the grpc server of this cluster member. default: "0.0.0.0"
 // NODE_KCP_PATH: the ip, without the port, that should be used when redirecting to this cluster member. default: 127.0.0.1
+// NATS_PATH: path to the NATS server where to interact to
 
 // Initialices this module
 func (conf *Configuration) Initialize() {
@@ -68,6 +70,12 @@ func (conf *Configuration) Initialize() {
 	conf.grpcIpAddressWithoutPort = "0.0.0.0"
 	conf.kcpPathWithoutPort = "127.0.0.1"
 	conf.grpcClusterPort = 40000 // yes, warhammer 40k!!!!
+	conf.natsServerPath = "127.0.0.1:4222"
+
+	// NATS server
+	if val := os.Getenv("NATS_PATH"); val != "" {
+		conf.natsServerPath = val
+	}
 
 	// port
 	stringPort := os.Getenv("PORT")
@@ -210,6 +218,10 @@ func (conf *Configuration) GetGrpcCurrentServerPath() string {
 
 func (conf *Configuration) GetClusterGrpcPort() uint16 {
 	return conf.grpcClusterPort
+}
+
+func (conf *Configuration) GetNATSserverPath() string {
+	return conf.natsServerPath
 }
 
 // ==== extras and local helpers ====

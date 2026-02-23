@@ -41,3 +41,15 @@ func (packet *DisconnectPacket) GetSender() int64 {
 func (packet *DisconnectPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	return []byte{byte(enums.DISCONNECT), byte(packet.reason)}, nil
 }
+
+func (packet *DisconnectPacket) GetRawPayload() []byte {
+	return []byte{}
+}
+
+func (packet *DisconnectPacket) GetIdentifier() string {
+	return ""
+}
+
+func (packet *DisconnectPacket) SetNewOwner(newOwner int64) {
+	packet.sessionID = newOwner
+}
