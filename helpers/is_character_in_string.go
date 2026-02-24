@@ -29,3 +29,18 @@ func IsAnyOfTwoCharactersInString(stringToCheck string, character1, character2 b
 
 	return false
 }
+
+func IsAnyOfTheseCharactersInString(stringToCheck string, characters []byte) bool {
+	dict := make(map[byte]struct{})
+	size := len(stringToCheck)
+
+	for x := 0; x < size; x++ {
+		currentCharacter := stringToCheck[x]
+
+		if _, exists := dict[currentCharacter]; exists {
+			return true
+		}
+	}
+
+	return false
+}

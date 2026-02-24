@@ -193,11 +193,12 @@ protocol version 1:
           - g: payload. it contains the payload of this publish. it has the size specified in payload size. [required]
 
       publish acknowledgement:
-        a bbbb
+        a bbbb c
 
         where:
           - a: packet type. (puback in this case). 1 byte [required]
           - b: publish packet identifier. 4 bytes. [required]
+          - c: publish result. it tells if the packet was publishe or if not, then it tells why [required]
 
         notes:
-          - this packet has a fixed size of 5 bytes
+          - this packet has a fixed size of 6 bytes

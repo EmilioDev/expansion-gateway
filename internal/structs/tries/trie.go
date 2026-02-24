@@ -60,6 +60,22 @@ func (trie *Trie) RemoveSubscriberFromAllSubscriptions(subscriber int64) {
 	go removeSubscriberFromAllSubscriptions(trie.root, subscriber)
 }
 
+// returns true if the subscriber is registered in that subscription
+func (trie *Trie) SubscriptionHasSubscriber(subscription SubscriptionKey, subscriber int64) bool {
+	levels := subscription.GetKeyLevels()
+	destiny := trie.root
+
+	for _, key := range levels {
+		if currentLevel, exists := destiny.GetExistChild(key); exists {
+			destiny = currentLevel
+		} else {
+			return false
+		}
+	}
+
+	return destiny.GetSubscribersAsMap().Exists(subscriber)
+}
+
 func getAllSubscriptions(subscriptionLevels []SubscriptionKey, currentIndex int, root TrieNode) *dictionaries.SessionsDictionary[struct{}] {
 	// if this is the final level of the subscription, then finish here
 	if currentIndex == len(subscriptionLevels) {

@@ -15,6 +15,6 @@ func (err *ConnectionToNatsFailed) SetStackTrace(stackTrace []string) errorinfo.
 
 func CreateConnectionToNatsFailedError(file string, index uint16, innerError error) *ConnectionToNatsFailed {
 	return &ConnectionToNatsFailed{
-		NatsError: CreateNatsError(file, "connection to NATS failed", index, 26, innerError),
+		NatsError: CreateNatsError(file, "connection to NATS failed", index, 27, innerError),
 	}
 }

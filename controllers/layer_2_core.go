@@ -238,6 +238,15 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 						layer.closeSession(senderId, enums.CloseReasonGatewayInternalError)
 					}
 
+				case enums.PUBLISH:
+					if pkt, ok := packet.(*dto.PublishPacket); ok {
+						if err := layer.handlePublishPacket(pkt); err != nil {
+							layer.closeSession(senderId, enums.CloseReasonProtocolViolation)
+						}
+					} else {
+						layer.closeSession(senderId, enums.CloseReasonGatewayInternalError)
+					}
+
 				default:
 					if err := layer.layer1PacketHandler(packet); err != nil {
 						layer.closeSession(senderId, enums.ByteReasonToDisconnectReason(err.GetErrorCode()))
@@ -297,6 +306,11 @@ func (layer *Layer2Core) listenLayer3(shardIndex int) {
 // sends a packet to layer 1
 func (layer *Layer2Core) sendPacketToLayer1(packet packets.Packet) {
 	layer.layer1Dispatcher.Dispatch(packet)
+}
+
+// sends a packet to layer 3
+func (layer *Layer2Core) sendPacketToLayer3(packet packets.Packet) {
+	layer.layer3Dispatcher.Dispatch(packet)
 }
 
 // ==== close ====
@@ -455,6 +469,47 @@ func (layer *Layer2Core) handleUnsubscribePacket(packet *dto.UnsubscribePacket) 
 		} else {
 			layer.sendPacketToLayer1(dto.CreateUnsubackPacket(sender, unsubId))
 		}
+	}
+
+	return nil
+}
+
+func (layer *Layer2Core) handlePublishPacket(packet *dto.PublishPacket) errorinfo.GatewayError {
+	sender := packet.GetSender()
+	const filePath string = "controllers/layer_2_core.go"
+
+	if session, exists := layer.sessions.GetExists(sender); exists {
+		if session.GetState() != enums.SESSION_CONNECTED {
+			return authErrors.CreateConnectionUnauthorizedError(filePath, 481, sender)
+		}
+
+		if packet.Key.IsFixedKey() {
+			if layer.subscriptions.SubscriptionHasSubscriber(packet.Key, sender) {
+				if packet.NeedsAcknowledgement() {
+					layer.sendPacketToLayer1(dto.CreatePubackPacket(
+						sender,
+						packet.GetPublishPacketID(),
+						enums.SUCCEED,
+					))
+				}
+
+				layer.sendPacketToLayer3(packet) // we send with this
+			} else if packet.NeedsAcknowledgement() {
+				layer.sendPacketToLayer1(dto.CreatePubackPacket(
+					sender,
+					packet.GetPublishPacketID(),
+					enums.USER_NOT_REGISTERED_IN_SUBSCRIPTION,
+				))
+			}
+		} else if packet.NeedsAcknowledgement() {
+			layer.sendPacketToLayer1(dto.CreatePubackPacket(
+				sender,
+				packet.GetPublishPacketID(),
+				enums.INVALID_KEY,
+			))
+		}
+	} else {
+		layer.closeSession(sender, enums.CloseReasonConnectionUnauthorized)
 	}
 
 	return nil

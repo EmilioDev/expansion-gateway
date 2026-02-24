@@ -88,18 +88,23 @@ func (s SubscriptionKey) ToNATSkey() string {
 // takes a string, and if it can be used as subscription, it creates one from it, or if it is invalid as
 // subscription, then returns an error
 func ConvertStringToSubscriptionKey(subscription string) (SubscriptionKey, errorinfo.GatewayError) {
+	const filePath string = "/internals/structs/subscription_key.go"
+
+	if helpers.IsAnyOfTheseCharactersInString(subscription, []byte{'@', '.'}) {
+		return SubscriptionKey(""), subsErrors.CreateUseOfInvalidCharactersInSubscriptionError(filePath, subscription, 93)
+	}
+
 	levels := strings.Split(subscription, "/")
 	lastLevel := len(levels) - 1
 
 	const oneLevelWildcard byte = byte('+')
 	const multiLevelWildcard byte = byte('#')
-	const filePath string = "/internals/structs/subscription_key.go"
 
 	for index, level := range levels {
 		if len(level) > 1 && helpers.IsAnyOfTwoCharactersInString(level, oneLevelWildcard, multiLevelWildcard) {
-			return SubscriptionKey(""), subsErrors.CreateInvalidUseOfWildcardsError(filePath, subscription, 44)
+			return SubscriptionKey(""), subsErrors.CreateInvalidUseOfWildcardsError(filePath, subscription, 104)
 		} else if index != lastLevel && level == "#" {
-			return SubscriptionKey(""), subsErrors.CreateInvalidUseOfWildcardsError(filePath, subscription, 46)
+			return SubscriptionKey(""), subsErrors.CreateInvalidUseOfWildcardsError(filePath, subscription, 106)
 		}
 	}
 
