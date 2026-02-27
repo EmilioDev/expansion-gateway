@@ -483,6 +483,8 @@ func (layer *Layer2Core) handlePublishPacket(packet *dto.PublishPacket) errorinf
 			return authErrors.CreateConnectionUnauthorizedError(filePath, 481, sender)
 		}
 
+		session.RefreshActivity()
+
 		if packet.Key.IsFixedKey() {
 			if layer.subscriptions.SubscriptionHasSubscriber(packet.Key, sender) {
 				if packet.NeedsAcknowledgement() {
