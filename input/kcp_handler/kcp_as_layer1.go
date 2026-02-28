@@ -46,10 +46,6 @@ func CreateNewKcpLayer1(configuration *config.Configuration,
 		shutdownOnce:  &sync.Once{},
 		startOnce:     &sync.Once{},
 		wg:            &sync.WaitGroup{},
-
-		// the channels are not going to be assigned here, this layer will be passed to layer 2
-		// and layer 2 will use the "ConfigureDumbLayer" method to configure the channels
-		// with the ones created there
 	}
 
 	result.working.Store(false)
@@ -177,7 +173,7 @@ func (layer *KcpAsLayer1) process() {
 	for layer.IsWorking() {
 		if session, err := layer.listener.AcceptKCP(); err == nil {
 			session.SetACKNoDelay(true)
-			session.SetStreamMode(true)
+			// session.SetStreamMode(true)
 			session.SetWindowSize(256, 256)
 			session.SetNoDelay(1, 10, 2, 1)
 			session.SetMtu(1200)

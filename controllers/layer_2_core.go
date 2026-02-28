@@ -200,7 +200,7 @@ func (layer *Layer2Core) listenLayer1(shardIndex int) {
 					if session, exists := layer.sessions.GetExists(senderId); exists {
 						if session.GetState() == enums.SESSION_CONNECTED {
 							session.RefreshActivity()
-							layer.layer1.SendPacket(dto.CreatePingACKpacket(senderId))
+							layer.sendPacketToLayer1(dto.CreatePingACKpacket(senderId))
 						} else {
 							layer.closeSession(senderId, enums.CloseReasonProtocolViolation)
 						}
