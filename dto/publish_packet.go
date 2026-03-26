@@ -138,3 +138,11 @@ func (packet *PublishPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 func (packet *PublishPacket) NeedsAcknowledgement() bool {
 	return packet.publishPacketId != 0
 }
+
+func (packet *PublishPacket) GetCounter() uint64 {
+	return packet.counter
+}
+
+func (packet *PublishPacket) UseWindow() bool {
+	return packet.useWindow
+}

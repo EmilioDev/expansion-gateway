@@ -59,7 +59,7 @@ func ToPublishPacket(byteArray *[]byte, connectionID int64) (packets.Packet, err
 	keySize := int(helpers.Convert4bytesIntoInt32(keySizeArray))
 
 	if index+keySize >= streamSize {
-		return nil, errors.CreateInvalidPacketSizeError(filePath, 41, enums.PUBLISH, streamSize)
+		return nil, errors.CreateInvalidPacketSizeError(filePath, 61, enums.PUBLISH, streamSize)
 	}
 
 	var key tries.SubscriptionKey
@@ -74,7 +74,7 @@ func ToPublishPacket(byteArray *[]byte, connectionID int64) (packets.Packet, err
 
 	// payload
 	if index+3 >= streamSize {
-		return nil, errors.CreateInvalidPacketSizeError(filePath, 56, enums.PUBLISH, streamSize)
+		return nil, errors.CreateInvalidPacketSizeError(filePath, 76, enums.PUBLISH, streamSize)
 	}
 
 	payloadSizeArray := [4]byte{input[index], input[index+1], input[index+2], input[index+3]}
@@ -82,7 +82,7 @@ func ToPublishPacket(byteArray *[]byte, connectionID int64) (packets.Packet, err
 	index += 4
 
 	if payloadSize+index != streamSize {
-		return nil, errors.CreateInvalidPacketSizeError(filePath, 64, enums.PUBLISH, streamSize)
+		return nil, errors.CreateInvalidPacketSizeError(filePath, 84, enums.PUBLISH, streamSize)
 	}
 
 	payload := input[index : index+payloadSize]
