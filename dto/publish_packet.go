@@ -12,15 +12,26 @@ type PublishPacket struct {
 	Key             tries.SubscriptionKey
 	publishPacketId int32
 	owner           int64
+	counter         uint64
+	useWindow       bool
 	payload         []byte
 }
 
-func CreatePublishPacket(key tries.SubscriptionKey, packetId int32, owner int64, payload []byte) *PublishPacket {
+func CreatePublishPacket(
+	key tries.SubscriptionKey,
+	packetId int32,
+	owner int64,
+	payload []byte,
+	counter uint64,
+	useWindow bool,
+) *PublishPacket {
 	return &PublishPacket{
 		Key:             key,
 		publishPacketId: packetId,
 		owner:           owner,
 		payload:         payload,
+		counter:         counter,
+		useWindow:       useWindow,
 	}
 }
 
@@ -30,6 +41,8 @@ func CreateBasicPublishPacket(key tries.SubscriptionKey, payload []byte) *Publis
 		publishPacketId: 0,
 		owner:           0,
 		payload:         payload,
+		counter:         0,
+		useWindow:       true,
 	}
 }
 
@@ -68,19 +81,42 @@ func (packet *PublishPacket) GetSender() int64 {
 func (packet *PublishPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	keyLen := packet.Key.KeyLength()
 	payloadLen := len(packet.payload)
-	result := make([]byte, 0, 1+1+4+keyLen+4+payloadLen)
+	packetLen := keyLen + payloadLen + 1 + 1 + 4 + 4
+
+	var flag byte = 0
+
+	if packet.publishPacketId != 0 {
+		packetLen += 4
+		flag = 1
+	}
+
+	if packet.counter != 0 {
+		packetLen += 8
+		flag += 2
+	}
+
+	if packet.useWindow {
+		flag += 4
+	}
+
+	result := make([]byte, 0, packetLen)
 
 	// publish identifier
 	result = append(result, byte(enums.PUBLISH))
 
 	// flags
-	if packet.publishPacketId == 0 {
-		result = append(result, 0)
-	} else {
-		identifier := helpers.ConvertInt32Into4Bytes(packet.publishPacketId)
+	result = append(result, flag)
 
-		result = append(result, 1)
+	// packet identifier
+	if packet.publishPacketId != 0 {
+		identifier := helpers.ConvertInt32Into4Bytes(packet.publishPacketId)
 		result = append(result, identifier[:]...)
+	}
+
+	// packet counter
+	if packet.counter != 0 {
+		counter := helpers.ConvertUInt64Into8Bytes(packet.counter)
+		result = append(result, counter[:]...)
 	}
 
 	// key

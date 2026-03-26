@@ -46,6 +46,12 @@ type Layer2Session struct {
 
 	// last subscribe
 	LastSubscribeId atomic.Int32
+
+	// publish sending counter
+	SendingCounter atomic.Uint64
+
+	// receiving counter
+	ReceivingCounter atomic.Uint64
 }
 
 // GenerateNewLayer2Session creates a new Layer2Session with default values
@@ -62,6 +68,8 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		Encryption:       crypto.CreateNewCryptoSessionModule(),
 		requestedPing:    atomic.Bool{},
 		LastSubscribeId:  atomic.Int32{},
+		SendingCounter:   atomic.Uint64{},
+		ReceivingCounter: atomic.Uint64{},
 	}
 
 	s.state.Store(int32(enums.HELLO_RECEIVED))

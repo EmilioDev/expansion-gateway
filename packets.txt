@@ -181,16 +181,28 @@ protocol version 1:
           - this packet has a fixed size of 5 bytes
 
       publish:
-        a b cccc dddd eeeeeeeeee ffff gggggggg
+        a b cccc hhhhhhhh dddd eeeeeeeeee ffff gggggggg
 
         where:
           - a: packet type (publish in this case). 1 byte [required]
           - b: publish flags. 1 byte [required]
           - c: packet identifier. it only appear if the confirm flag is on. it has 4 bytes.
+          - h: packet counter. it only appears if the packet counter flag is on. it has 8 bytes.
           - d: key size. it tells the size of the key where this packet should be published. 4 bytes. [required]
           - e: key. it tells where this publish should be published. it has the size specified in key size. [required]
           - f: payload size. it tells you the size if the payload to be published. 4 bytes [required]
           - g: payload. it contains the payload of this publish. it has the size specified in payload size. [required]
+
+        notes:
+          - flags:
+              aaaaadcb
+              where:
+                - a: unasigned. must be zero.
+                - b: confirm flag. if the value is 1, the packet has identifier, but if the value is 0, then there is no identifier.
+                - c: packet counter flag. if the value is 1, the packet has counter, but if the value is 0, then there is no counter.
+                - d: short-lifed flag. if the value is 0, then this packet will be processed only if the 
+                  counter is bigger than the latest one the server received. if the value is 1, the packet 
+                  will be processed only if it inside the valid window range.
 
       publish acknowledgement:
         a bbbb c

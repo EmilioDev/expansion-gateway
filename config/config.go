@@ -28,6 +28,7 @@ type Configuration struct {
 	kcpPathWithoutPort       string        // the kcp path that should be used when redirecting to this node
 	grpcClusterPort          uint16        // the port this cluster member is using to receive request from other members
 	natsServerPath           string        // path to the NATS server where this client should publish the packets
+	publishWindowSize        uint64        // the size of the window to allow a publish packet to be processed if it requests to use window range
 }
 
 // ===== environment variables, their description, and their default value
@@ -45,6 +46,7 @@ type Configuration struct {
 // GRPC_SERVER_IP_PATH_WITHOUT_PORT: the ip, without the port, used by the grpc server of this cluster member. default: "0.0.0.0"
 // NODE_KCP_PATH: the ip, without the port, that should be used when redirecting to this cluster member. default: 127.0.0.1
 // NATS_PATH: path to the NATS server where to interact to
+// PUBLISH_WINDOW_SIZE: the size of the window to allow publish packets. default is 10
 
 // Initialices this module
 func (conf *Configuration) Initialize() {
@@ -71,6 +73,14 @@ func (conf *Configuration) Initialize() {
 	conf.kcpPathWithoutPort = "127.0.0.1"
 	conf.grpcClusterPort = 40000 // yes, warhammer 40k!!!!
 	conf.natsServerPath = "127.0.0.1:4222"
+	conf.publishWindowSize = 10
+
+	// PUBLISH window size
+	if val := os.Getenv("PUBLISH_WINDOW_SIZE"); val != "" {
+		if num, err := strconv.Atoi(val); err == nil {
+			conf.publishWindowSize = helpers.ConvertIntToUint64(num)
+		}
+	}
 
 	// NATS server
 	if val := os.Getenv("NATS_PATH"); val != "" {
@@ -162,6 +172,10 @@ func (conf *Configuration) Initialize() {
 	if s := os.Getenv("NODE_KCP_PATH"); s != "" {
 		conf.kcpPathWithoutPort = s
 	}
+}
+
+func (conf *Configuration) GetPublishWindowSize() uint64 {
+	return conf.publishWindowSize
 }
 
 func (conf *Configuration) GetKcpPathToThisGateway() string {
