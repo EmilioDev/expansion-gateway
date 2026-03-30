@@ -2,6 +2,7 @@ package engines
 
 import "encoding/binary"
 
+// generates a new nonce of a specified size from the connection id and the counter
 func buildNonce(connectionID int64, counter uint64, size int) []byte {
 	nonce := make([]byte, size)
 
