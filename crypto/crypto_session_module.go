@@ -82,6 +82,8 @@ func (module *CryptoSessionModule) GenerateNewKey(clientEphemeralPubKey [32]byte
 
 		// there you have it, the final key, securely generated
 		module.key = sessionKey
+	} else {
+		return cryptoerror.CreateEphemeralKeysNotGeneratedError(filePath, 62)
 	}
 
 	return nil
@@ -128,13 +130,13 @@ func (module *CryptoSessionModule) SetEphemeralKeys(keys *cryptodto.EphemeralKey
 // ===== Encrypt / Decrypt
 
 // encrypt a string using the values stored in the module
-func (module *CryptoSessionModule) Encrypt(textToEncrypt *string) []byte {
+func (module *CryptoSessionModule) Encrypt(textToEncrypt *[]byte) []byte {
 	return []byte{}
 }
 
 // decrypts a string using the values stored in the module
-func (module *CryptoSessionModule) Decrypt(streamToDecrypt []byte) string {
-	return ""
+func (module *CryptoSessionModule) Decrypt(streamToDecrypt *[]byte) []byte {
+	return []byte{}
 }
 
 // ===== Connected data =====
