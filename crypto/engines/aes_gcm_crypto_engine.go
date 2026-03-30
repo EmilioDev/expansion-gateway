@@ -53,7 +53,7 @@ func (engine *AESGCMCryptoEngine) Decrypt(counter uint64, data []byte) ([]byte, 
 	if res, err := engine.aead.Open(nil, nonce, data, nil); err == nil {
 		return res, nil
 	} else {
-		return []byte{}, cryptoerror.CreateDecryptionFailedError(
+		return nil, cryptoerror.CreateDecryptionFailedError(
 			"/crypto/engines/aes_gcm_crypto_engine.go",
 			52,
 			err,

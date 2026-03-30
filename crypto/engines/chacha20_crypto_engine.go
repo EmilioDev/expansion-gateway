@@ -41,7 +41,7 @@ func (engine *Chacha20CryptoEngine) Decrypt(counter uint64, data []byte) ([]byte
 	if res, err := engine.aead.Open(nil, nonce, data, nil); err == nil {
 		return res, nil
 	} else {
-		return []byte{}, cryptoerror.CreateDecryptionFailedError(
+		return nil, cryptoerror.CreateDecryptionFailedError(
 			"/crypto/engines/chacha20_crypto_engine.go",
 			41,
 			err,
