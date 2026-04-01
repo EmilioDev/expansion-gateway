@@ -46,6 +46,17 @@ func CreateBasicPublishPacket(key tries.SubscriptionKey, payload []byte) *Publis
 	}
 }
 
+func ClonePublishPacketSetDifferentPayload(packet *PublishPacket, payload []byte) *PublishPacket {
+	return &PublishPacket{
+		Key:             packet.Key,
+		publishPacketId: packet.publishPacketId,
+		owner:           packet.owner,
+		counter:         packet.counter,
+		useWindow:       packet.useWindow,
+		payload:         payload,
+	}
+}
+
 func (packet *PublishPacket) GetPacketType() enums.PacketType {
 	return enums.PUBLISH
 }

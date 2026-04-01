@@ -148,7 +148,7 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 					newSession.UpdateFromFollowerSubscription(subscription)
 					layer.subscriptions.Delete(subscriptionId)
 
-					newSession.Encryption.GenerateNewKey(clientEphemeralKey)
+					newSession.Encryption.GenerateNewKey(clientEphemeralKey, sessionId)
 					newSession.Encryption.DeleteEphemeralKeys()
 
 					layer.clusterServer.InformClientConnected(subscription.UserId)

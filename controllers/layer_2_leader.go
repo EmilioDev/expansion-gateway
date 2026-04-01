@@ -138,9 +138,9 @@ func (layer *Layer2Leader) handleConnectPacket(packet *dto.ConnectPacket) errori
 				msg = append(msg, clientEphemeralKey[:]...)
 
 				if ed25519.Verify(publicKey, msg, packet.Signature[:]) {
-					layer.authorizeSession(sessionId)                     // session authorized
-					session.Encryption.GenerateNewKey(clientEphemeralKey) // final password generated
-					session.Encryption.DeleteEphemeralKeys()              // ephemeral keys deleted
+					layer.authorizeSession(sessionId)                                // session authorized
+					session.Encryption.GenerateNewKey(clientEphemeralKey, sessionId) // final password generated
+					session.Encryption.DeleteEphemeralKeys()                         // ephemeral keys deleted
 				} else {
 					// this client is unauthorized!!!
 					layer.closeSession(sessionId, enums.CloseReasonFailedAuthentication) // handled
@@ -293,7 +293,11 @@ func (layer *Layer2Leader) authorizeSession(sessionId int64) {
 	if sessionToApprove, sessionExist := layer.sessions.GetExists(sessionId); sessionExist {
 		switch sessionToApprove.GetState() {
 		case enums.SESSION_CONNECTED:
-			packet := dto.CreateNewConnectedPacket(sessionId, sessionToApprove)
+			packet := dto.CreateNewConnectedPacket(
+				sessionId,
+				sessionToApprove,
+				layer.configuration.GetPublishWindowSize(),
+			)
 			layer.layer1.SendPacket(packet)
 
 		case enums.CHALLENGE_SENT, enums.RECEIVED_CONNECT: // the user just proved identity

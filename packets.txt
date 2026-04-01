@@ -113,13 +113,15 @@ protocol version 1:
           - this packet has a fixed length of 2 bytes
 
       connected:
-        a bbbbbbbb c ch f gggggggg h i j k l m
+        a bbbbbbbb c ch d ee f gggggggg h i j k l m
 
         where:
           - a: packet type (connected in this case) 1 byte [required]
           - b: session id. 8 bytes [required]
           - c(25): encryption key flag. if present, value must be 25. 1 byte
           - ch: encryption algorithm. it appears only if encryption key flag is present. it tells you which algorithm is going to be used to encrypt payloads. it has 1 byte
+          - d(73): sliding window size flag. if present, value is 73. 1 byte
+          - e: sliding window size. it only appears next to the sliding window size flag. it indicates the size if the sliding window used by the server. it has 2 bytes
           - f(13): timeout flag. if present, value must be 13. 1 byte
           - g: timeout. it only appears if the timeout flag is present. it tells you the session timeout in milliseconds. it has 8 bytes
           - h(48): protocol version flag. if present, it must be 48. 1 byte

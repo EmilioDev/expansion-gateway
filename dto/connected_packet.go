@@ -9,26 +9,28 @@ import (
 )
 
 type ConnectedPacket struct {
-	sessionTimeout  int64                     // the timeout duration in milliseconds
-	sessionID       int64                     // the session id
-	sessionResume   bool                      // if this is a resume of a previously existing session, or a new fresh one
-	state           enums.ConnectionState     // the state of this session
-	protocolVersion enums.ProtocolVersion     // the version of the protocol this user will use
-	clientType      enums.ClientType          // the kind of client this user is
-	clientVersion   byte                      // the version this client is using
-	encryption      enums.EncryptionAlgorithm // the encryption algorithm used in the payload
+	sessionTimeout    int64                     // the timeout duration in milliseconds
+	sessionID         int64                     // the session id
+	sessionResume     bool                      // if this is a resume of a previously existing session, or a new fresh one
+	state             enums.ConnectionState     // the state of this session
+	protocolVersion   enums.ProtocolVersion     // the version of the protocol this user will use
+	clientType        enums.ClientType          // the kind of client this user is
+	clientVersion     byte                      // the version this client is using
+	encryption        enums.EncryptionAlgorithm // the encryption algorithm used in the payload
+	slidingWindowSize uint16                    // size of the sliding window used by this server
 }
 
-func CreateNewConnectedPacket(sessionId int64, session sessions.Session) *ConnectedPacket {
+func CreateNewConnectedPacket(sessionId int64, session sessions.Session, slidingWindowSize uint16) *ConnectedPacket {
 	answer := ConnectedPacket{
-		sessionTimeout:  session.GetConfiguration().GetSessionTimeout().Milliseconds(),
-		sessionID:       sessionId,
-		sessionResume:   session.GetSessionResume(),
-		state:           session.GetState(),
-		protocolVersion: session.GetProtocolVersion(),
-		clientType:      session.GetClientType(),
-		clientVersion:   session.GetClientVersion(),
-		encryption:      session.GetEncryption(),
+		sessionTimeout:    session.GetConfiguration().GetSessionTimeout().Milliseconds(),
+		sessionID:         sessionId,
+		sessionResume:     session.GetSessionResume(),
+		state:             session.GetState(),
+		protocolVersion:   session.GetProtocolVersion(),
+		clientType:        session.GetClientType(),
+		clientVersion:     session.GetClientVersion(),
+		encryption:        session.GetEncryption(),
+		slidingWindowSize: slidingWindowSize,
 	}
 
 	return &answer
@@ -47,7 +49,7 @@ func (packet *ConnectedPacket) GetPayload() string {
 }
 
 func (packet *ConnectedPacket) Marshal() ([]byte, errorinfo.GatewayError) {
-	output := make([]byte, 0, 1+8+2+4+1+8+2+2+2)
+	output := make([]byte, 0, 1+8+2+4+1+8+2+2+2+1+2)
 
 	sessionId := helpers.ConvertInt64Into8Bytes(packet.sessionID)
 
@@ -75,6 +77,11 @@ func (packet *ConnectedPacket) Marshal() ([]byte, errorinfo.GatewayError) {
 	// client version
 	output = append(output, 82)
 	output = append(output, packet.clientVersion)
+
+	// sliding window
+	output = append(output, 73)
+	windowSize := helpers.ConvertUint16Into2Bytes(packet.slidingWindowSize)
+	output = append(output, windowSize[:]...)
 
 	return output, nil
 }

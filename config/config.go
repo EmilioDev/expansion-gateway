@@ -28,7 +28,7 @@ type Configuration struct {
 	kcpPathWithoutPort       string        // the kcp path that should be used when redirecting to this node
 	grpcClusterPort          uint16        // the port this cluster member is using to receive request from other members
 	natsServerPath           string        // path to the NATS server where this client should publish the packets
-	publishWindowSize        uint64        // the size of the window to allow a publish packet to be processed if it requests to use window range
+	publishWindowSize        uint16        // the size of the window to allow a publish packet to be processed if it requests to use window range
 }
 
 // ===== environment variables, their description, and their default value
@@ -78,7 +78,7 @@ func (conf *Configuration) Initialize() {
 	// PUBLISH window size
 	if val := os.Getenv("PUBLISH_WINDOW_SIZE"); val != "" {
 		if num, err := strconv.Atoi(val); err == nil {
-			conf.publishWindowSize = helpers.ConvertIntToUint64(num)
+			conf.publishWindowSize = helpers.ConvertIntToUint16(num)
 		}
 	}
 
@@ -174,7 +174,7 @@ func (conf *Configuration) Initialize() {
 	}
 }
 
-func (conf *Configuration) GetPublishWindowSize() uint64 {
+func (conf *Configuration) GetPublishWindowSize() uint16 {
 	return conf.publishWindowSize
 }
 

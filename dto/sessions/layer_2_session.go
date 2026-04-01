@@ -350,7 +350,6 @@ func (s *Layer2Session) GetFrame() *SessionFrame {
 		ClientVersion:      s.GetClientVersion(),
 		Encryption:         s.GetEncryption(),
 		SessionResume:      s.GetSessionResume(),
-		EncryptionKey:      s.Encryption.GetKey(),
 		Challenge:          s.challenge,
 	}
 }
@@ -363,7 +362,6 @@ type SessionFrame struct {
 	ClientVersion      byte
 	Encryption         enums.EncryptionAlgorithm
 	SessionResume      bool
-	EncryptionKey      []byte
 	Challenge          []byte
 }
 

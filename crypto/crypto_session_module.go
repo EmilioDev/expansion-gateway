@@ -1,33 +1,35 @@
 package crypto
 
 import (
-	"crypto/sha256"
+	"expansion-gateway/crypto/engines"
 	"expansion-gateway/dto/cryptodto"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/cryptoerror"
-	"expansion-gateway/helpers"
+	"expansion-gateway/interfaces/crypto"
 	"expansion-gateway/interfaces/errorinfo"
-	"fmt"
-	"io"
+	"sync"
 	"sync/atomic"
 
 	"golang.org/x/crypto/curve25519"
-	"golang.org/x/crypto/hkdf"
 )
 
 // the module of the sessions in Layer 2 responsible for handling cryptographics
 type CryptoSessionModule struct {
-	encryptionMethod atomic.Int32 // the encryption method currently used
-	key              []byte       // the key used to encrypt content
-	ephemeralKeys    atomic.Pointer[cryptodto.EphemeralKeysDto]
+	encryptionMethod  atomic.Int32                               // the encryption method currently used
+	ephemeralKeys     atomic.Pointer[cryptodto.EphemeralKeysDto] // ephemeral keys used for shared secret generation
+	cryptoEngine      crypto.CryptoEngine                        // the crypto-engine used for decrypt/encrypt data
+	criptoEngineMutex sync.RWMutex                               // cripto engine mutex for avoiding collisions while changing the engine
+	counter           atomic.Uint64                              // the counter used to encrypt data
 }
 
 // returns a new encryption module for the layer 2 sessions
 func CreateNewCryptoSessionModule() *CryptoSessionModule {
 	answer := CryptoSessionModule{
-		encryptionMethod: atomic.Int32{},
-		key:              []byte{},
-		ephemeralKeys:    atomic.Pointer[cryptodto.EphemeralKeysDto]{},
+		encryptionMethod:  atomic.Int32{},
+		ephemeralKeys:     atomic.Pointer[cryptodto.EphemeralKeysDto]{},
+		cryptoEngine:      engines.NewNoneCryptoEngine(),
+		criptoEngineMutex: sync.RWMutex{},
+		counter:           atomic.Uint64{},
 	}
 
 	answer.encryptionMethod.Store(int32(enums.NoEncryptionAlgorithm))
@@ -49,44 +51,64 @@ func (module *CryptoSessionModule) GetEncryptionAlgorithm() enums.EncryptionAlgo
 
 // ===== Encryption Key =====
 
-// gets the current key stored
-func (module *CryptoSessionModule) GetKey() []byte {
-	return module.key
-}
-
 // generate a new key or password and stores it
-func (module *CryptoSessionModule) GenerateNewKey(clientEphemeralPubKey [32]byte) errorinfo.GatewayError {
-	ephemeralKeys := module.ephemeralKeys.Load()
+func (module *CryptoSessionModule) GenerateNewKey(clientEphemeralPubKey [32]byte, connectionID int64) errorinfo.GatewayError {
 	const filePath string = "/crypto/crypto_session_module.go"
+	ephemeralKeys := module.ephemeralKeys.Load()
 
 	if ephemeralKeys == nil {
 		return cryptoerror.CreateEphemeralKeysNotGeneratedError(filePath, 62)
 	}
 
-	serverPrivateKey := ephemeralKeys.GetPrivateKey()
+	privateKey := ephemeralKeys.GetPrivateKey()
+	var shared [32]byte
 
-	if sharedSecret, err := curve25519.X25519(serverPrivateKey[:], clientEphemeralPubKey[:]); err == nil {
-		// --- Derive final session key via HKDF-SHA256 ---
-		keyName := fmt.Sprintf(
-			"key-identifier-%d.%d.%d",
-			helpers.GenerateRandomInt64(),
-			helpers.GenerateRandomInt64(),
-			helpers.GenerateRandomInt64())
+	curve25519.ScalarMult(&shared, &privateKey, &clientEphemeralPubKey)
 
-		h := hkdf.New(sha256.New, sharedSecret, nil, []byte(keyName))
-		sessionKey := make([]byte, 32)
+	encryptionSupported := module.GetEncryptionAlgorithm()
 
-		if _, err2 := io.ReadFull(h, sessionKey); err2 != nil {
-			return cryptoerror.CreateHKDFfailedError(filePath, 79)
-		}
+	switch encryptionSupported {
+	case enums.AES_CTR_PLUS_HMAC_SHA256:
+		module.setAESCtrPlusHmacSha256Engine(connectionID, shared)
 
-		// there you have it, the final key, securely generated
-		module.key = sessionKey
-	} else {
-		return cryptoerror.CreateEphemeralKeysNotGeneratedError(filePath, 62)
+	case enums.AES_GCM:
+		module.setAESGCMEngine(connectionID, shared)
+
+	case enums.XChaCha20:
+		module.setChacha20Engine(connectionID, shared)
+
+	default:
+		// do nothing
 	}
 
 	return nil
+}
+
+func (module *CryptoSessionModule) setAESGCMEngine(connectionID int64, sharedSecret [32]byte) {
+	module.criptoEngineMutex.Lock()
+	defer module.criptoEngineMutex.Unlock()
+
+	if engine, err := engines.NewAESGCMCipher(sharedSecret, connectionID); err == nil {
+		module.cryptoEngine = engine
+	}
+}
+
+func (module *CryptoSessionModule) setChacha20Engine(connectionID int64, sharedSecret [32]byte) {
+	module.criptoEngineMutex.Lock()
+	defer module.criptoEngineMutex.Unlock()
+
+	if engine, err := engines.NewChacha20CryptoEngine(sharedSecret, connectionID); err == nil {
+		module.cryptoEngine = engine
+	}
+}
+
+func (module *CryptoSessionModule) setAESCtrPlusHmacSha256Engine(connectionID int64, sharedSecret [32]byte) {
+	module.criptoEngineMutex.Lock()
+	defer module.criptoEngineMutex.Unlock()
+
+	if engine, err := engines.NewAESCTRHMACCryptoEngine(sharedSecret, connectionID); err == nil {
+		module.cryptoEngine = engine
+	}
 }
 
 // ===== Ephemeral Keys =====
@@ -127,16 +149,37 @@ func (module *CryptoSessionModule) SetEphemeralKeys(keys *cryptodto.EphemeralKey
 	module.ephemeralKeys.Store(keys)
 }
 
-// ===== Encrypt / Decrypt
+// ===== Encrypt / Decrypt =====
 
 // encrypt a string using the values stored in the module
-func (module *CryptoSessionModule) Encrypt(textToEncrypt *[]byte) []byte {
-	return []byte{}
+func (module *CryptoSessionModule) Encrypt(textToEncrypt *[]byte) ([]byte, uint64) {
+	module.criptoEngineMutex.RLock()
+	defer module.criptoEngineMutex.RUnlock()
+
+	counter := module.counter.Load()
+	module.counter.Add(1)
+
+	input := *textToEncrypt
+
+	if res, err := module.cryptoEngine.Encrypt(counter, input); err == nil {
+		return res, counter
+	}
+
+	return input, 0
 }
 
 // decrypts a string using the values stored in the module
-func (module *CryptoSessionModule) Decrypt(streamToDecrypt *[]byte) []byte {
-	return []byte{}
+func (module *CryptoSessionModule) Decrypt(streamToDecrypt *[]byte, counter uint64) ([]byte, errorinfo.GatewayError) {
+	module.criptoEngineMutex.RLock()
+	defer module.criptoEngineMutex.RUnlock()
+
+	input := *streamToDecrypt
+
+	if res, err := module.cryptoEngine.Decrypt(counter, input); err == nil {
+		return res, nil
+	} else {
+		return nil, err
+	}
 }
 
 // ===== Connected data =====

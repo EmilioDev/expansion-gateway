@@ -38,6 +38,7 @@ type Layer2Core struct {
 	startOnce                 *sync.Once
 	stopOnce                  *sync.Once
 	subscriptions             *tries.Trie
+	slidingWindowSize         uint64
 }
 
 // starts the server
@@ -365,7 +366,11 @@ func (layer *Layer2Core) approveSession(sessionId int64) {
 			sessionId = requestedSessionId
 		}
 
-		packet := dto.CreateNewConnectedPacket(sessionId, sessionToApprove)
+		packet := dto.CreateNewConnectedPacket(
+			sessionId,
+			sessionToApprove,
+			layer.configuration.GetPublishWindowSize(),
+		)
 		layer.sendPacketToLayer1(packet)
 
 		sessionToApprove.SetState(enums.SESSION_CONNECTED)
@@ -484,26 +489,73 @@ func (layer *Layer2Core) handlePublishPacket(packet *dto.PublishPacket) errorinf
 		}
 
 		session.RefreshActivity()
+		packetNeedsAcknowledgement := packet.NeedsAcknowledgement()
 
 		if packet.Key.IsFixedKey() {
 			if layer.subscriptions.SubscriptionHasSubscriber(packet.Key, sender) {
-				if packet.NeedsAcknowledgement() {
-					layer.sendPacketToLayer1(dto.CreatePubackPacket(
-						sender,
-						packet.GetPublishPacketID(),
-						enums.SUCCEED,
-					))
+				// we first check if the packet counter is ok
+				counter := session.ReceivingCounter.Load()
+				packetCounter := packet.GetCounter()
+
+				if packet.UseWindow() {
+					if packetCounter < counter-layer.slidingWindowSize {
+						if packetNeedsAcknowledgement {
+							layer.sendPacketToLayer1(dto.CreatePubackPacket(
+								sender,
+								packet.GetPublishPacketID(),
+								enums.OUTDATED,
+							))
+						}
+
+						return nil
+					}
+				} else {
+					if packetCounter <= counter {
+						if packetNeedsAcknowledgement {
+							layer.sendPacketToLayer1(dto.CreatePubackPacket(
+								sender,
+								packet.GetPublishPacketID(),
+								enums.OUTDATED,
+							))
+						}
+
+						return nil
+					}
 				}
 
-				layer.sendPacketToLayer3(packet) // we send with this
-			} else if packet.NeedsAcknowledgement() {
+				rawPayload := packet.GetRawPayload()
+				if decriptedPayload, err := session.Encryption.Decrypt(&rawPayload, packet.GetCounter()); err == nil {
+					if packetNeedsAcknowledgement {
+						layer.sendPacketToLayer1(dto.CreatePubackPacket(
+							sender,
+							packet.GetPublishPacketID(),
+							enums.SUCCEED,
+						))
+					}
+
+					// we update the packet counter
+					if counter < packetCounter {
+						session.ReceivingCounter.Store(packetCounter)
+					}
+
+					layer.sendPacketToLayer3(dto.ClonePublishPacketSetDifferentPayload(packet, decriptedPayload)) // we send with this
+				} else {
+					if packetNeedsAcknowledgement {
+						layer.sendPacketToLayer1(dto.CreatePubackPacket(
+							sender,
+							packet.GetPublishPacketID(),
+							enums.ENCRYPTION_FAILED,
+						))
+					}
+				}
+			} else if packetNeedsAcknowledgement {
 				layer.sendPacketToLayer1(dto.CreatePubackPacket(
 					sender,
 					packet.GetPublishPacketID(),
 					enums.USER_NOT_REGISTERED_IN_SUBSCRIPTION,
 				))
 			}
-		} else if packet.NeedsAcknowledgement() {
+		} else if packetNeedsAcknowledgement {
 			layer.sendPacketToLayer1(dto.CreatePubackPacket(
 				sender,
 				packet.GetPublishPacketID(),
@@ -544,5 +596,6 @@ func CreateNewLayer2Core(
 		startOnce:                 &sync.Once{},
 		stopOnce:                  &sync.Once{},
 		subscriptions:             tries.CreateTrie(),
+		slidingWindowSize:         uint64(conf.GetPublishWindowSize()),
 	}
 }
