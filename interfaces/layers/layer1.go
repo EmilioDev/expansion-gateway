@@ -6,7 +6,7 @@ import (
 )
 
 type Layer1 interface {
-	DumbLayer
+	DumbLayer[packets.Packet]
 	SendPacket(packets.Packet) errorinfo.GatewayError
 	DisableSession(int64)
 }

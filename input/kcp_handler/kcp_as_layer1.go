@@ -25,8 +25,8 @@ import (
 type KcpAsLayer1 struct {
 	sessions         *structs.SessionsDictionary[*kcp.UDPSession] // all the sessions that are currently active
 	listener         *kcp.Listener                                // the kcp listener
-	outputDispatcher dispatchers.Dispatcher                       // this is the channel used to communicate with the next layer
-	inputReceiver    dispatchers.Reciver                          // receiver from layer 1
+	outputDispatcher dispatchers.Dispatcher[packets.Packet]       // this is the channel used to communicate with the next layer
+	inputReceiver    dispatchers.Reciver[packets.Packet]          // receiver from layer 1
 	configuration    *config.Configuration                        // this is the configuration module. it contains all the config details
 	parser           parsers.ByteStreamToPacketParser             // the byte array to packet parser
 	working          *atomic.Bool                                 // tells you if this layer is working or not
@@ -115,7 +115,7 @@ func (layer *KcpAsLayer1) Stop() errorinfo.GatewayError {
 	return nil
 }
 
-func (layer *KcpAsLayer1) ConfigureDumbLayer(outputChannel dispatchers.Dispatcher, inputChannel dispatchers.Reciver) errorinfo.GatewayError {
+func (layer *KcpAsLayer1) ConfigureDumbLayer(outputChannel dispatchers.Dispatcher[packets.Packet], inputChannel dispatchers.Reciver[packets.Packet]) errorinfo.GatewayError {
 	layer.outputDispatcher = outputChannel
 	layer.inputReceiver = inputChannel
 

@@ -2,7 +2,7 @@ package nats
 
 import (
 	"expansion-gateway/config"
-	"expansion-gateway/dto"
+	natsDto "expansion-gateway/dto/nats"
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/layererrors"
 	natsErrors "expansion-gateway/errors/nats"
@@ -22,19 +22,19 @@ import (
 )
 
 type NatsBasicHandlerLayer3 struct {
-	layer2Dispatcher  dispatchers.Dispatcher // packet dispatcher to layer 2
-	layer2Receiver    dispatchers.Reciver    // packet receiver from layer 2
-	natsServerPath    string                 // path to nats
-	connection        *nats.Conn             // connection to nats
-	working           *atomic.Bool           // tells you if this layer is working or not
-	shutdownOnce      *sync.Once             // executes the shutdown only once
-	startOnce         *sync.Once             // executes the start only once
-	wg                *sync.WaitGroup        // the wait group of layer 3
-	messageCounter    atomic.Uint64          // used in the identifier of each message
-	gatewayNameInNats string                 // this is going to be used in the identifier of each message too
+	layer2Dispatcher  dispatchers.Dispatcher[packets.OutputPacket] // packet dispatcher to layer 2
+	layer2Receiver    dispatchers.Reciver[packets.OutputPacket]    // packet receiver from layer 2
+	natsServerPath    string                                       // path to nats
+	connection        *nats.Conn                                   // connection to nats
+	working           *atomic.Bool                                 // tells you if this layer is working or not
+	shutdownOnce      *sync.Once                                   // executes the shutdown only once
+	startOnce         *sync.Once                                   // executes the start only once
+	wg                *sync.WaitGroup                              // the wait group of layer 3
+	messageCounter    atomic.Uint64                                // used in the identifier of each message
+	gatewayNameInNats string                                       // this is going to be used in the identifier of each message too
 }
 
-func (layer *NatsBasicHandlerLayer3) Publish(data packets.Packet) errorinfo.GatewayError {
+func (layer *NatsBasicHandlerLayer3) Publish(data packets.OutputPacket) errorinfo.GatewayError {
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (layer *NatsBasicHandlerLayer3) UnsubscribeTo(topic string) errorinfo.Gatew
 	return nil
 }
 
-func (layer *NatsBasicHandlerLayer3) ConfigureDumbLayer(outputChannel dispatchers.Dispatcher, inputChannel dispatchers.Reciver) errorinfo.GatewayError {
+func (layer *NatsBasicHandlerLayer3) ConfigureDumbLayer(outputChannel dispatchers.Dispatcher[packets.OutputPacket], inputChannel dispatchers.Reciver[packets.OutputPacket]) errorinfo.GatewayError {
 	layer.layer2Dispatcher = outputChannel
 	layer.layer2Receiver = inputChannel
 
@@ -145,7 +145,7 @@ func (layer *NatsBasicHandlerLayer3) process() {
 
 		if len(splittedSubject) == 2 {
 			if key, err := tries.ConvertStringToSubscriptionKey(splittedSubject[1]); err == nil {
-				packet := dto.CreateBasicPublishPacket(key, message.Data)
+				packet := natsDto.CreateNewNatsDataTransferRecipe(key, message.Data)
 				layer.layer2Dispatcher.Dispatch(packet)
 			}
 		}
@@ -179,8 +179,8 @@ func (layer *NatsBasicHandlerLayer3) handleShardFromLayer2(shardIndex int) {
 			}
 
 			layer.connection.Publish(
-				fmt.Sprintf("input.v1.@.%s", packet.GetIdentifier()),
-				packet.GetRawPayload(),
+				fmt.Sprintf("input.v1.@.%s", packet.GetKey().ToString()),
+				packet.GetPayload(),
 			)
 
 		default:

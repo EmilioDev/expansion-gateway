@@ -4,6 +4,7 @@ package controllers
 import (
 	"expansion-gateway/config"
 	"expansion-gateway/dto"
+	"expansion-gateway/dto/nats"
 	sessionsDTO "expansion-gateway/dto/sessions"
 	"expansion-gateway/enums"
 	authErrors "expansion-gateway/errors/auth"
@@ -25,10 +26,10 @@ type Layer2Core struct {
 	layer3                    layers.Layer3
 	working                   *atomic.Bool
 	configuration             *config.Configuration
-	layer1Reciver             disp.Reciver
-	layer1Dispatcher          disp.Dispatcher
-	layer3Reciver             disp.Reciver
-	layer3Dispatcher          disp.Dispatcher
+	layer1Reciver             disp.Reciver[packets.Packet]
+	layer1Dispatcher          disp.Dispatcher[packets.Packet]
+	layer3Reciver             disp.Reciver[packets.OutputPacket]
+	layer3Dispatcher          disp.Dispatcher[packets.OutputPacket]
 	sessions                  *structs.SessionsDictionary[*sessionsDTO.Layer2Session]
 	wg                        *sync.WaitGroup
 	layer1PacketHandler       func(packets.Packet) errorinfo.GatewayError
@@ -123,8 +124,8 @@ func (layer *Layer2Core) Stop() errorinfo.GatewayError {
 func (layer *Layer2Core) ConfigureFirstLayer(target layers.Layer1) errorinfo.GatewayError {
 	layer.layer1 = target
 
-	layer1InDispatcher, layer1InReceiver := others.NewShardedDispatcher(layer.configuration)
-	layer1OutDispatcher, layer1OutReceiver := others.NewShardedDispatcher(layer.configuration)
+	layer1InDispatcher, layer1InReceiver := others.NewShardedPacketDispatcher(layer.configuration)
+	layer1OutDispatcher, layer1OutReceiver := others.NewShardedPacketDispatcher(layer.configuration)
 
 	layer.layer1Reciver = layer1InReceiver
 	layer.layer1Dispatcher = layer1OutDispatcher
@@ -135,8 +136,11 @@ func (layer *Layer2Core) ConfigureFirstLayer(target layers.Layer1) errorinfo.Gat
 func (layer *Layer2Core) ConfigureThirdLayer(target layers.Layer3) errorinfo.GatewayError {
 	layer.layer3 = target
 
-	layer3InDispatcher, layer3InReceiver := others.NewShardedDispatcher(layer.configuration)
-	layer3OutDispatcher, layer3OutReceiver := others.NewShardedDispatcher(layer.configuration)
+	shardCount := layer.configuration.GetShardCount()
+	bufferSize := layer.configuration.GetShardBufferSize()
+
+	layer3InDispatcher, layer3InReceiver := others.NewShardedNatsDispatcher(shardCount, bufferSize)
+	layer3OutDispatcher, layer3OutReceiver := others.NewShardedNatsDispatcher(shardCount, bufferSize)
 
 	layer.layer3Reciver = layer3InReceiver
 	layer.layer3Dispatcher = layer3OutDispatcher
@@ -288,12 +292,15 @@ func (layer *Layer2Core) listenLayer3(shardIndex int) {
 				continue
 			}
 
-			subscription := tries.SubscriptionKey(packet.GetIdentifier())
-			subscribers := layer.subscriptions.GetSubscribers(subscription)
+			subscribers := layer.subscriptions.GetSubscribers(packet.GetKey())
+			rawPayload := packet.GetPayload()
+			key := packet.GetKey()
 
 			for _, senderId := range subscribers {
-				packet.SetNewOwner(senderId)
-				layer.sendPacketToLayer1(packet)
+				if session, exists := layer.sessions.GetExists(senderId); exists {
+					payload, count := session.Encryption.Encrypt(&rawPayload)
+					layer.sendPacketToLayer1(dto.CreatePublishPacket(key, 0, senderId, payload, count, true))
+				}
 			}
 
 		default:
@@ -310,18 +317,18 @@ func (layer *Layer2Core) sendPacketToLayer1(packet packets.Packet) {
 }
 
 // sends a packet to layer 3
-func (layer *Layer2Core) sendPacketToLayer3(packet packets.Packet) {
-	layer.layer3Dispatcher.Dispatch(packet)
+func (layer *Layer2Core) sendPacketToLayer3(key tries.SubscriptionKey, payload []byte) {
+	layer.layer3Dispatcher.Dispatch(nats.CreateNewNatsDataTransferRecipe(key, payload))
 }
 
 // ==== close ====
 
 // close session handler
 func (layer *Layer2Core) closeSession(sessionId int64, reason enums.DisconnectReason) {
+	layer.closeSessionInLayer1(sessionId, reason)
+
 	if layer.sessions.WasDeleted(sessionId) {
 		layer.subscriptions.RemoveSubscriberFromAllSubscriptions(sessionId)
-
-		layer.closeSessionInLayer1(sessionId, reason)
 		layer.closeSessionInLayer3(sessionId, reason)
 	}
 }
@@ -538,7 +545,7 @@ func (layer *Layer2Core) handlePublishPacket(packet *dto.PublishPacket) errorinf
 						session.ReceivingCounter.Store(packetCounter)
 					}
 
-					layer.sendPacketToLayer3(dto.ClonePublishPacketSetDifferentPayload(packet, decriptedPayload)) // we send with this
+					layer.sendPacketToLayer3(packet.Key, decriptedPayload) // we send with this
 				} else {
 					if packetNeedsAcknowledgement {
 						layer.sendPacketToLayer1(dto.CreatePubackPacket(

@@ -7,7 +7,7 @@ import (
 	"expansion-gateway/internal/dispatchers"
 )
 
-func NewShardedDispatcher(cfg *config.Configuration) (disp.Dispatcher, disp.Reciver) {
+func NewShardedPacketDispatcher(cfg *config.Configuration) (disp.Dispatcher[packets.Packet], disp.Reciver[packets.Packet]) {
 	shardCount := cfg.GetShardCount()
 	bufferSize := cfg.GetShardBufferSize()
 

@@ -6,8 +6,8 @@ import (
 )
 
 type Layer3 interface {
-	DumbLayer
-	Publish(data packets.Packet) errorinfo.GatewayError
+	DumbLayer[packets.OutputPacket]
+	Publish(data packets.OutputPacket) errorinfo.GatewayError
 	SubscribeTo(topic string) errorinfo.GatewayError
 	UnsubscribeTo(topic string) errorinfo.GatewayError
 	RenameGateway(newName string)
