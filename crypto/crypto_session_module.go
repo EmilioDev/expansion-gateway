@@ -32,6 +32,8 @@ func CreateNewCryptoSessionModule() *CryptoSessionModule {
 		counter:           atomic.Uint64{},
 	}
 
+	answer.counter.Store(1)
+
 	answer.encryptionMethod.Store(int32(enums.NoEncryptionAlgorithm))
 
 	return &answer
