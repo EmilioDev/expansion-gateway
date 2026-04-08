@@ -33,6 +33,7 @@ type NatsBasicHandlerLayer3 struct {
 	wg                *sync.WaitGroup                              // the wait group of layer 3
 	messageCounter    atomic.Uint64                                // used in the identifier of each message
 	gatewayNameInNats string                                       // this is going to be used in the identifier of each message too
+	ecoPath           tries.SubscriptionKey                        // the path that should be answered back with the same payload inmediatly, without forwarding
 }
 
 func (layer *NatsBasicHandlerLayer3) Publish(data packets.OutputPacket) errorinfo.GatewayError {
@@ -179,6 +180,12 @@ func (layer *NatsBasicHandlerLayer3) handleShardFromLayer2(shardIndex int) {
 				continue
 			}
 
+			// if this is a eco
+			if packet.GetKey() == layer.ecoPath {
+				layer.layer2Dispatcher.Dispatch(natsDto.CreateNewNatsDataBasicTransferRecipe(packet.GetKey(), packet.GetPayload()))
+				continue
+			}
+
 			identifier := helpers.ConvertInt64Into8Bytes(packet.GetSender())
 			payload := append([]byte{}, identifier[:]...)
 			payload = append(payload, packet.GetPayload()...)
@@ -206,5 +213,6 @@ func GenerateNewNatsLayer3Output(configuration *config.Configuration) *NatsBasic
 		wg:                &sync.WaitGroup{},
 		messageCounter:    atomic.Uint64{},
 		gatewayNameInNats: "gateway",
+		ecoPath:           configuration.GetEcoPath(),
 	}
 }

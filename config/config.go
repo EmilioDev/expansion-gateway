@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"expansion-gateway/helpers"
+	"expansion-gateway/internal/structs/tries"
 	"fmt"
 	"math"
 	"os"
@@ -14,21 +15,22 @@ import (
 )
 
 type Configuration struct {
-	port                     uint16        // the port used by the layer 1 to listen for connections
-	bufferSize               int           // the max size of each packet
-	shardCount               int           // number of channels to be used between the dispatchers and the receivers
-	shardBufferSize          int           // the number of packets that should be buffered in the packet receivers between the layers
-	timeout                  int           // the connection timeout of each client to the layer 1
-	sessionTimeout           time.Duration // time each session has to do any activity before being declared as inactive and then deleted (seconds)
-	sessionWatcherPeriod     time.Duration // the watcher period, the time between each check to see if there is an idle session (milliseconds)
-	godotEd25519PublicKey    []byte        // the public key used in the Ed25519 authentication for godot
-	cliEd25519PublicKey      []byte        // the public key used in the Ed25519 authentication for the cli tool
-	grpcLeaderPath           string        // path to the leader of the cluster, if this field is empty, this node is a leader in the cluster
-	grpcIpAddressWithoutPort string        // path to access to this node
-	kcpPathWithoutPort       string        // the kcp path that should be used when redirecting to this node
-	grpcClusterPort          uint16        // the port this cluster member is using to receive request from other members
-	natsServerPath           string        // path to the NATS server where this client should publish the packets
-	publishWindowSize        uint16        // the size of the window to allow a publish packet to be processed if it requests to use window range
+	port                     uint16                // the port used by the layer 1 to listen for connections
+	bufferSize               int                   // the max size of each packet
+	shardCount               int                   // number of channels to be used between the dispatchers and the receivers
+	shardBufferSize          int                   // the number of packets that should be buffered in the packet receivers between the layers
+	timeout                  int                   // the connection timeout of each client to the layer 1
+	sessionTimeout           time.Duration         // time each session has to do any activity before being declared as inactive and then deleted (seconds)
+	sessionWatcherPeriod     time.Duration         // the watcher period, the time between each check to see if there is an idle session (milliseconds)
+	godotEd25519PublicKey    []byte                // the public key used in the Ed25519 authentication for godot
+	cliEd25519PublicKey      []byte                // the public key used in the Ed25519 authentication for the cli tool
+	grpcLeaderPath           string                // path to the leader of the cluster, if this field is empty, this node is a leader in the cluster
+	grpcIpAddressWithoutPort string                // path to access to this node
+	kcpPathWithoutPort       string                // the kcp path that should be used when redirecting to this node
+	grpcClusterPort          uint16                // the port this cluster member is using to receive request from other members
+	natsServerPath           string                // path to the NATS server where this client should publish the packets
+	publishWindowSize        uint16                // the size of the window to allow a publish packet to be processed if it requests to use window range
+	ecoPath                  tries.SubscriptionKey // the path that should be answered with an eco
 }
 
 // ===== environment variables, their description, and their default value
@@ -47,6 +49,7 @@ type Configuration struct {
 // NODE_KCP_PATH: the ip, without the port, that should be used when redirecting to this cluster member. default: 127.0.0.1
 // NATS_PATH: path to the NATS server where to interact to
 // PUBLISH_WINDOW_SIZE: the size of the window to allow publish packets. default is 10
+// ECO: if something is published in this path, it will be published back to the client, without being forwarded. default is "/eco"
 
 // Initialices this module
 func (conf *Configuration) Initialize() {
@@ -74,6 +77,14 @@ func (conf *Configuration) Initialize() {
 	conf.grpcClusterPort = 40000 // yes, warhammer 40k!!!!
 	conf.natsServerPath = "127.0.0.1:4222"
 	conf.publishWindowSize = 10
+	conf.ecoPath = tries.SubscriptionKey("/eco")
+
+	// ECO path
+	if val := os.Getenv("ECO"); val != "" {
+		if path, err := tries.ConvertStringToSubscriptionKey(val); err == nil {
+			conf.ecoPath = path
+		}
+	}
 
 	// PUBLISH window size
 	if val := os.Getenv("PUBLISH_WINDOW_SIZE"); val != "" {
@@ -172,6 +183,10 @@ func (conf *Configuration) Initialize() {
 	if s := os.Getenv("NODE_KCP_PATH"); s != "" {
 		conf.kcpPathWithoutPort = s
 	}
+}
+
+func (conf *Configuration) GetEcoPath() tries.SubscriptionKey {
+	return conf.ecoPath
 }
 
 func (conf *Configuration) GetPublishWindowSize() uint16 {
