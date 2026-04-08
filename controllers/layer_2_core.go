@@ -317,8 +317,8 @@ func (layer *Layer2Core) sendPacketToLayer1(packet packets.Packet) {
 }
 
 // sends a packet to layer 3
-func (layer *Layer2Core) sendPacketToLayer3(key tries.SubscriptionKey, payload []byte) {
-	layer.layer3Dispatcher.Dispatch(nats.CreateNewNatsDataTransferRecipe(key, payload))
+func (layer *Layer2Core) sendPacketToLayer3(key tries.SubscriptionKey, owner int64, payload []byte) {
+	layer.layer3Dispatcher.Dispatch(nats.CreateNewNatsDataTransferRecipe(key, owner, payload))
 }
 
 // ==== close ====
@@ -545,7 +545,7 @@ func (layer *Layer2Core) handlePublishPacket(packet *dto.PublishPacket) errorinf
 						session.ReceivingCounter.Store(packetCounter)
 					}
 
-					layer.sendPacketToLayer3(packet.Key, decriptedPayload) // we send with this
+					layer.sendPacketToLayer3(packet.Key, sender, decriptedPayload) // we send with this
 				} else {
 					if packetNeedsAcknowledgement {
 						layer.sendPacketToLayer1(dto.CreatePubackPacket(

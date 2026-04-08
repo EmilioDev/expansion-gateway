@@ -6,6 +6,7 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/layererrors"
 	natsErrors "expansion-gateway/errors/nats"
+	"expansion-gateway/helpers"
 	"expansion-gateway/interfaces/dispatchers"
 	"expansion-gateway/interfaces/errorinfo"
 	"expansion-gateway/interfaces/packets"
@@ -145,7 +146,7 @@ func (layer *NatsBasicHandlerLayer3) process() {
 
 		if len(splittedSubject) == 2 {
 			if key, err := tries.ConvertStringToSubscriptionKey(splittedSubject[1]); err == nil {
-				packet := natsDto.CreateNewNatsDataTransferRecipe(key, message.Data)
+				packet := natsDto.CreateNewNatsDataBasicTransferRecipe(key, message.Data)
 				layer.layer2Dispatcher.Dispatch(packet)
 			}
 		}
@@ -178,9 +179,13 @@ func (layer *NatsBasicHandlerLayer3) handleShardFromLayer2(shardIndex int) {
 				continue
 			}
 
+			identifier := helpers.ConvertInt64Into8Bytes(packet.GetSender())
+			payload := append([]byte{}, identifier[:]...)
+			payload = append(payload, packet.GetPayload()...)
+
 			layer.connection.Publish(
 				fmt.Sprintf("input.v1.@.%s", packet.GetKey().ToString()),
-				packet.GetPayload(),
+				payload,
 			)
 
 		default:

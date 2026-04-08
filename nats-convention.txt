@@ -10,3 +10,14 @@ subject:
 
     notes:
         - the '@' and the '.' characters should not be allowed in the publish key
+
+payload:
+    when sending:
+        <sender><payload>
+    
+    when receiving:
+        <payload>
+    
+    where:
+        - sender: it has 8 bytes, it is the id of the sender.
+        - payload: the size is variable, it is the content to be published.

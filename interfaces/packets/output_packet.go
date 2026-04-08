@@ -7,4 +7,5 @@ import (
 type OutputPacket interface {
 	GetKey() tries.SubscriptionKey
 	GetPayload() []byte
+	GetSender() int64
 }
