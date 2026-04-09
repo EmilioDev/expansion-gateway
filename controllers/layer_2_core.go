@@ -292,16 +292,10 @@ func (layer *Layer2Core) listenLayer3(shardIndex int) {
 				continue
 			}
 
-			subscribers := layer.subscriptions.GetSubscribers(packet.GetKey())
 			rawPayload := packet.GetPayload()
 			key := packet.GetKey()
 
-			for _, senderId := range subscribers {
-				if session, exists := layer.sessions.GetExists(senderId); exists {
-					payload, count := session.Encryption.Encrypt(&rawPayload)
-					layer.sendPacketToLayer1(dto.CreatePublishPacket(key, 0, senderId, payload, count, true))
-				}
-			}
+			layer.publishContentInTopic(rawPayload, key, true)
 
 		default:
 			time.Sleep(time.Millisecond * 10) // Yield CPU, prevent tight loop
@@ -319,6 +313,18 @@ func (layer *Layer2Core) sendPacketToLayer1(packet packets.Packet) {
 // sends a packet to layer 3
 func (layer *Layer2Core) sendPacketToLayer3(key tries.SubscriptionKey, owner int64, payload []byte) {
 	layer.layer3Dispatcher.Dispatch(nats.CreateNewNatsDataTransferRecipe(key, owner, payload))
+}
+
+// publish content
+func (layer *Layer2Core) publishContentInTopic(rawContent []byte, topic tries.SubscriptionKey, useWindow bool) {
+	subscribers := layer.subscriptions.GetSubscribers(topic)
+
+	for _, senderId := range subscribers {
+		if session, exists := layer.sessions.GetExists(senderId); exists {
+			payload, count := session.Encryption.Encrypt(&rawContent)
+			layer.sendPacketToLayer1(dto.CreatePublishPacket(topic, 0, senderId, payload, count, useWindow))
+		}
+	}
 }
 
 // ==== close ====
@@ -545,7 +551,11 @@ func (layer *Layer2Core) handlePublishPacket(packet *dto.PublishPacket) errorinf
 						session.ReceivingCounter.Store(packetCounter)
 					}
 
-					layer.sendPacketToLayer3(packet.Key, sender, decriptedPayload) // we send with this
+					if packet.Key == layer.configuration.GetEcoPath() { // the user wants to eco
+						layer.publishContentInTopic(decriptedPayload, packet.Key, false) // we eco with this
+					} else { // the user wants to forward
+						layer.sendPacketToLayer3(packet.Key, sender, decriptedPayload) // we forward with this
+					}
 				} else {
 					if packetNeedsAcknowledgement {
 						layer.sendPacketToLayer1(dto.CreatePubackPacket(
