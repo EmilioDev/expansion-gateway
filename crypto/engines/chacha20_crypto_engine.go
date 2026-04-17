@@ -6,7 +6,6 @@ import (
 	"expansion-gateway/enums"
 	"expansion-gateway/errors/cryptoerror"
 	"expansion-gateway/interfaces/errorinfo"
-
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -43,7 +42,7 @@ func (engine *Chacha20CryptoEngine) Decrypt(counter uint64, data []byte) ([]byte
 	} else {
 		return nil, cryptoerror.CreateDecryptionFailedError(
 			"/crypto/engines/chacha20_crypto_engine.go",
-			41,
+			44,
 			err,
 		)
 	}
