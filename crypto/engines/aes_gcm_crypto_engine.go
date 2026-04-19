@@ -43,12 +43,12 @@ func NewAESGCMCipher(sharedSecret [32]byte, connectionID int64) (*AESGCMCryptoEn
 }
 
 func (engine *AESGCMCryptoEngine) Encrypt(counter uint64, data []byte) ([]byte, errorinfo.GatewayError) {
-	nonce := buildNonce(engine.connectionID, counter, engine.aead.NonceSize())
+	nonce := buildNonceAesGcm(engine.connectionID, counter)
 	return engine.aead.Seal(nil, nonce, data, nil), nil
 }
 
 func (engine *AESGCMCryptoEngine) Decrypt(counter uint64, data []byte) ([]byte, errorinfo.GatewayError) {
-	nonce := buildNonce(engine.connectionID, counter, engine.aead.NonceSize())
+	nonce := buildNonceAesGcm(engine.connectionID, counter)
 
 	if res, err := engine.aead.Open(nil, nonce, data, nil); err == nil {
 		return res, nil
