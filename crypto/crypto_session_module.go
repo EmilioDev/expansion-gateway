@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"expansion-gateway/config"
 	"expansion-gateway/crypto/engines"
 	"expansion-gateway/dto/cryptodto"
 	"expansion-gateway/enums"
@@ -20,16 +21,18 @@ type CryptoSessionModule struct {
 	cryptoEngine      crypto.CryptoEngine                        // the crypto-engine used for decrypt/encrypt data
 	criptoEngineMutex sync.RWMutex                               // cripto engine mutex for avoiding collisions while changing the engine
 	counter           atomic.Uint64                              // the counter used to encrypt data
+	conf              *config.Configuration
 }
 
 // returns a new encryption module for the layer 2 sessions
-func CreateNewCryptoSessionModule() *CryptoSessionModule {
+func CreateNewCryptoSessionModule(conf *config.Configuration) *CryptoSessionModule {
 	answer := CryptoSessionModule{
 		encryptionMethod:  atomic.Int32{},
 		ephemeralKeys:     atomic.Pointer[cryptodto.EphemeralKeysDto]{},
 		cryptoEngine:      engines.NewNoneCryptoEngine(),
 		criptoEngineMutex: sync.RWMutex{},
 		counter:           atomic.Uint64{},
+		conf:              conf,
 	}
 
 	answer.counter.Store(1)
@@ -108,7 +111,7 @@ func (module *CryptoSessionModule) setAESCtrPlusHmacSha256Engine(connectionID in
 	module.criptoEngineMutex.Lock()
 	defer module.criptoEngineMutex.Unlock()
 
-	if engine, err := engines.NewAESCTRHMACCryptoEngine(sharedSecret, connectionID); err == nil {
+	if engine, err := engines.NewAESCTRHMACCryptoEngine(sharedSecret, connectionID, module.conf.GetCryptoInfo()); err == nil {
 		module.cryptoEngine = engine
 	}
 }

@@ -62,7 +62,7 @@ func GenerateNewLayer2Session(config *config.Configuration) *Layer2Session {
 		timeoutTracker:   NewTimeoutTracker(config.GetSessionTimeout()),
 		configuration:    config,
 		redirectPacket:   atomic.Pointer[dto.RedirectPacket]{},
-		Encryption:       crypto.CreateNewCryptoSessionModule(),
+		Encryption:       crypto.CreateNewCryptoSessionModule(config),
 		requestedPing:    atomic.Bool{},
 		LastSubscribeId:  atomic.Int32{},
 		ReceivingCounter: atomic.Uint64{},

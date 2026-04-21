@@ -9,9 +9,6 @@ import (
 	"expansion-gateway/errors/cryptoerror"
 	"expansion-gateway/interfaces/errorinfo"
 	"fmt"
-	"io"
-
-	"golang.org/x/crypto/hkdf"
 )
 
 type AESCTRplusHMACSHA256CryptoEngine struct {
@@ -20,33 +17,22 @@ type AESCTRplusHMACSHA256CryptoEngine struct {
 	connectionID int64
 }
 
-func NewAESCTRHMACCryptoEngine(shared [32]byte, connectionID int64) (*AESCTRplusHMACSHA256CryptoEngine, errorinfo.GatewayError) {
-	keyName := fmt.Sprintf("key-identifier-%d", connectionID)
+func NewAESCTRHMACCryptoEngine(
+	shared [32]byte,
+	connectionID int64,
+	cryptoInfo []byte) (*AESCTRplusHMACSHA256CryptoEngine, errorinfo.GatewayError) {
 	const filePath string = "/crypto/engines/aes_gcm_crypto_engine.go"
-	hk := hkdf.New(sha256.New, shared[:], nil, []byte(keyName))
 
-	var encKey [32]byte
-	var macKey [32]byte
+	encKey, macKey, err := deriveAesCtrHmacSha256Keys(shared, cryptoInfo)
 
-	if _, err := io.ReadFull(hk, encKey[:]); err != nil {
-		return nil, cryptoerror.CreateCryptoEngineNotGeneratedError(
-			filePath,
-			31,
-			err,
-		)
-	}
-
-	if _, err := io.ReadFull(hk, macKey[:]); err != nil {
-		return nil, cryptoerror.CreateCryptoEngineNotGeneratedError(
-			filePath,
-			39,
-			err,
-		)
+	if err != nil {
+		fmt.Println("creation of crypto object failed")
+		return nil, err
 	}
 
 	return &AESCTRplusHMACSHA256CryptoEngine{
-		encKey:       encKey[:],
-		macKey:       macKey[:],
+		encKey:       encKey,
+		macKey:       macKey,
 		connectionID: connectionID,
 	}, nil
 }
@@ -57,7 +43,7 @@ func (engine *AESCTRplusHMACSHA256CryptoEngine) Encrypt(counter uint64, data []b
 	if err != nil {
 		return nil, cryptoerror.CreateEncryptionFailedError(
 			"/crypto/engines/aes_ctr_plus_hmac_sha256_crypto_engine.go",
-			55,
+			37,
 			err,
 		)
 	}
@@ -84,7 +70,7 @@ func (c *AESCTRplusHMACSHA256CryptoEngine) Decrypt(counter uint64, data []byte) 
 	if err != nil {
 		return nil, cryptoerror.CreateDecryptionFailedError(
 			filePath,
-			81,
+			63,
 			err,
 		)
 	}
@@ -111,7 +97,7 @@ func (c *AESCTRplusHMACSHA256CryptoEngine) Decrypt(counter uint64, data []byte) 
 	if !hmac.Equal(receivedTag, expectedTag) {
 		return nil, cryptoerror.CreateDecryptionFailedError(
 			filePath,
-			85,
+			93,
 			fmt.Errorf("invalid MAC"),
 		)
 	}

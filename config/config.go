@@ -31,6 +31,7 @@ type Configuration struct {
 	natsServerPath           string                // path to the NATS server where this client should publish the packets
 	publishWindowSize        uint16                // the size of the window to allow a publish packet to be processed if it requests to use window range
 	ecoPath                  tries.SubscriptionKey // the path that should be answered with an eco
+	aesCtrHmacSha256Info     []byte                // the crypto info used for generating the two keys in AES-CTR + HMAC-SHA256
 }
 
 // ===== environment variables, their description, and their default value
@@ -50,6 +51,7 @@ type Configuration struct {
 // NATS_PATH: path to the NATS server where to interact to
 // PUBLISH_WINDOW_SIZE: the size of the window to allow publish packets. default is 10
 // ECO: if something is published in this path, it will be published back to the client, without being forwarded. default is "/eco"
+// CRYPTO_INFO: the info value used in the encryption. default is "aes-ctr-hmac-key-derivation-v1"
 
 // Initialices this module
 func (conf *Configuration) Initialize() {
@@ -78,6 +80,14 @@ func (conf *Configuration) Initialize() {
 	conf.natsServerPath = "127.0.0.1:4222"
 	conf.publishWindowSize = 10
 	conf.ecoPath = tries.SubscriptionKey("/eco")
+	conf.aesCtrHmacSha256Info = []byte("aes-ctr-hmac-key-derivation-v1")
+
+	// AES-CTR + HMAC-SHA256 info
+	if val := os.Getenv("CRYPTO_INFO"); val != "" {
+		if v := strings.Trim(val, " "); v != "" {
+			conf.aesCtrHmacSha256Info = []byte(v)
+		}
+	}
 
 	// ECO path
 	if val := os.Getenv("ECO"); val != "" {
@@ -183,6 +193,10 @@ func (conf *Configuration) Initialize() {
 	if s := os.Getenv("NODE_KCP_PATH"); s != "" {
 		conf.kcpPathWithoutPort = s
 	}
+}
+
+func (conf *Configuration) GetCryptoInfo() []byte {
+	return conf.aesCtrHmacSha256Info
 }
 
 func (conf *Configuration) GetEcoPath() tries.SubscriptionKey {
