@@ -3,7 +3,7 @@ FROM alpine:3.22.2 as compiler
 
 # the go dist used, we are going to store it locally to avoid network issues
 # and to grant that docker is using the same version used during development
-ARG GO_DIST="go1.24.2.linux-amd64.tar.gz"
+ARG GO_DIST="go1.26.1.linux-amd64.tar.gz"
 
 WORKDIR /compiled
 
