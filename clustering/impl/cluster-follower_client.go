@@ -32,7 +32,13 @@ func CreateClusterFollowerClient() *ClusterFollower_Client {
 }
 
 func (c *ClusterFollower_Client) Connect(source string) errorinfo.GatewayError {
-	addr := fmt.Sprintf("addr%d", helpers.GenerateRandomInt64())
+	addr := fmt.Sprintf(
+		"addr%d.%d.%d.%d",
+		helpers.GenerateRandomInt64(),
+		helpers.GenerateRandomInt64(),
+		helpers.GenerateRandomInt64(),
+		helpers.GenerateRandomInt64(),
+	)
 	address := flag.String(addr, source, "the address to connect to the client")
 
 	if conn, err := google.NewClient(*address, google.WithTransportCredentials(insecure.NewCredentials())); err == nil {
