@@ -128,8 +128,6 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 
 					layer.clusterServer.InformClientConnected(subscription.UserId)
 
-					layer.closeSession(sessionId, enums.CloseReasonSessionIdTakenByOtherConnection)
-
 					layer.sessions.Store(newSession, sessionId)
 					layer.approveSession(sessionId)
 
@@ -152,8 +150,6 @@ func (layer *Layer2Follower) handleREDIRECTEDpacket(packet packets.Packet) error
 					newSession.Encryption.DeleteEphemeralKeys()
 
 					layer.clusterServer.InformClientConnected(subscription.UserId)
-
-					layer.closeSession(sessionId, enums.CloseReasonSessionIdTakenByOtherConnection)
 
 					layer.sessions.Store(newSession, sessionId)
 					layer.approveSession(sessionId)
